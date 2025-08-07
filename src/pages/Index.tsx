@@ -85,7 +85,7 @@ const Index = () => {
           guideImage: preprocessedImage.imageURL,
           weight: 1,
           startStep: 0,
-          endStep: 50,
+          endStep: 28,
           controlMode: 'balanced' as const
         }]
       };
