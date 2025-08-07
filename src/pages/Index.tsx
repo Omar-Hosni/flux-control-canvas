@@ -14,7 +14,7 @@ import { Brain, Zap, Settings } from 'lucide-react';
 import { RunwareService, type PreprocessedImage, type GeneratedImage, type GenerateImageParams } from '@/services/RunwareService';
 
 const Index = () => {
-  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>("J9GGKxXu8hDhbW1mXOPaNHBH8S48QnhT");
   const [runwareService, setRunwareService] = useState<RunwareService | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedPreprocessor, setSelectedPreprocessor] = useState<string | null>(null);

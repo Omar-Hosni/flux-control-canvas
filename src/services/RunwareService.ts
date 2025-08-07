@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 
 const API_ENDPOINT = "wss://ws-api.runware.ai/v1";
+const DEFAULT_API_KEY = "J9GGKxXu8hDhbW1mXOPaNHBH8S48QnhT";
 
 export interface ControlNetPreprocessor {
   id: string;
