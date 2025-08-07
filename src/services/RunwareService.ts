@@ -168,7 +168,7 @@ export class RunwareService {
           reject(new Error(data.errorMessage));
         } else {
           resolve({
-            imageURL: data.imageURL,
+            imageURL: data.guideImageURL || data.guideImageUUID,
             preprocessor
           });
         }
