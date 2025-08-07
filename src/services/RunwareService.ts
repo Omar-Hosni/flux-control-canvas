@@ -156,7 +156,7 @@ export class RunwareService {
         taskType: "imageControlNetPreProcess",
         taskUUID,
         inputImage: uploadedImageUrl,
-        preprocessor,
+        preProcessorType: preprocessor,
         outputType: ["URL"],
         outputFormat: "PNG"
       }];
@@ -285,6 +285,6 @@ export const CONTROL_NET_PREPROCESSORS: ControlNetPreprocessor[] = [
     name: "Normal Map",
     description: "Generates surface normal information",
     taskType: "imageControlNetPreProcess",
-    preprocessor: "normal"
+    preprocessor: "normalbae"
   }
 ];
