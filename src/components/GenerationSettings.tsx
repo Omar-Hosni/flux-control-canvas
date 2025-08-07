@@ -35,6 +35,7 @@ export const GenerationSettings = ({
   const [model, setModel] = useState('runware:101@1');
 
   const handleGenerate = () => {
+    console.log('Generation params:', { steps: steps[0], hasPreprocessedImage, preprocessedImageUrl });
     if (!prompt.trim() || !hasPreprocessedImage) return;
 
     const params: GenerateImageParams = {
@@ -51,12 +52,13 @@ export const GenerationSettings = ({
         model: 'runware:29@1', // CNFlux ControlNet
         guideImage: preprocessedImageUrl,
         weight: controlWeight[0],
-        startStep: 0,
-        endStep: steps[0],
+        startStep: 1,
+        endStep: Math.max(1, steps[0] - 1),
         controlMode: 'balanced'
       }] : undefined
     };
 
+    console.log('Final params being sent:', params);
     onGenerate(params);
   };
 
