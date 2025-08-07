@@ -7,7 +7,7 @@ export interface ControlNetPreprocessor {
   id: string;
   name: string;
   description: string;
-  taskType: "imageControlnetPreprocessor";
+  taskType: "imageControlNetPreProcess";
   preprocessor: string;
 }
 
@@ -153,7 +153,7 @@ export class RunwareService {
     
     return new Promise((resolve, reject) => {
       const message = [{
-        taskType: "imageControlnetPreprocessor",
+        taskType: "imageControlNetPreProcess",
         taskUUID,
         inputImage: uploadedImageUrl,
         preprocessor,
@@ -263,28 +263,28 @@ export const CONTROL_NET_PREPROCESSORS: ControlNetPreprocessor[] = [
     id: "canny",
     name: "Canny Edge",
     description: "Detects edges in the image",
-    taskType: "imageControlnetPreprocessor",
+    taskType: "imageControlNetPreProcess",
     preprocessor: "canny"
   },
   {
     id: "depth",
     name: "Depth Map", 
     description: "Creates a depth map of the image",
-    taskType: "imageControlnetPreprocessor",
+    taskType: "imageControlNetPreProcess",
     preprocessor: "depth"
   },
   {
     id: "pose",
     name: "Human Pose",
     description: "Detects human poses and body structure",
-    taskType: "imageControlnetPreprocessor", 
+    taskType: "imageControlNetPreProcess", 
     preprocessor: "openpose"
   },
   {
     id: "normal",
     name: "Normal Map",
     description: "Generates surface normal information",
-    taskType: "imageControlnetPreprocessor",
+    taskType: "imageControlNetPreProcess",
     preprocessor: "normal"
   }
 ];
