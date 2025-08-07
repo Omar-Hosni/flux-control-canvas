@@ -24,12 +24,11 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    const savedApiKey = localStorage.getItem('runware_api_key');
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-      setRunwareService(new RunwareService(savedApiKey));
+    if (apiKey) {
+      console.log('Creating RunwareService with API key');
+      setRunwareService(new RunwareService(apiKey));
     }
-  }, []);
+  }, [apiKey]);
 
   const handleApiKeySet = (key: string) => {
     setApiKey(key);
