@@ -1,15 +1,25 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eraser, ArrowUp, PaintBucket, Crop, Play } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Eraser, ArrowUp, PaintBucket, Crop, Play, Upload } from 'lucide-react';
+import { useWorkflowStore } from '@/stores/workflowStore';
 
 interface ToolNodeProps {
   id: string;
   data: {
     label: string;
     toolType: 'removebg' | 'upscale' | 'inpaint' | 'outpaint';
+    upscaleFactor?: number;
+    inpaintPrompt?: string;
+    maskImage?: string;
+    outpaintPrompt?: string;
+    outpaintDirection?: string;
+    outpaintAmount?: number;
   };
 }
 
@@ -34,6 +44,129 @@ const getToolColor = (type: string) => {
 };
 
 export const ToolNode = memo(({ id, data }: ToolNodeProps) => {
+  const { updateNodeData } = useWorkflowStore();
+  const [maskFile, setMaskFile] = useState<File | null>(null);
+
+  const handleMaskUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setMaskFile(file);
+      const url = URL.createObjectURL(file);
+      updateNodeData(id, { maskImage: url });
+    }
+  };
+
+  const renderSettings = () => {
+    switch (data.toolType) {
+      case 'upscale':
+        return (
+          <div>
+            <Label className="text-xs text-muted-foreground">Scale Factor</Label>
+            <Select
+              value={String(data.upscaleFactor || 2)}
+              onValueChange={(value) => updateNodeData(id, { upscaleFactor: Number(value) })}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2">2x</SelectItem>
+                <SelectItem value="4">4x</SelectItem>
+                <SelectItem value="8">8x</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        );
+
+      case 'inpaint':
+        return (
+          <div className="space-y-2">
+            <div>
+              <Label className="text-xs text-muted-foreground">Mask Image</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs h-8"
+                onClick={() => document.getElementById(`mask-${id}`)?.click()}
+              >
+                <Upload className="w-3 h-3 mr-1" />
+                {maskFile ? 'Change Mask' : 'Upload Mask'}
+              </Button>
+              <input
+                id={`mask-${id}`}
+                type="file"
+                accept="image/*"
+                onChange={handleMaskUpload}
+                className="hidden"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Inpaint Prompt</Label>
+              <Textarea
+                value={data.inpaintPrompt || ''}
+                onChange={(e) => updateNodeData(id, { inpaintPrompt: e.target.value })}
+                placeholder="Describe what to fill..."
+                className="text-xs h-16 nodrag"
+              />
+            </div>
+          </div>
+        );
+
+      case 'outpaint':
+        return (
+          <div className="space-y-2">
+            <div>
+              <Label className="text-xs text-muted-foreground">Direction</Label>
+              <Select
+                value={data.outpaintDirection || 'all'}
+                onValueChange={(value) => updateNodeData(id, { outpaintDirection: value })}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="up">Up</SelectItem>
+                  <SelectItem value="down">Down</SelectItem>
+                  <SelectItem value="left">Left</SelectItem>
+                  <SelectItem value="right">Right</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Amount (px)</Label>
+              <Select
+                value={String(data.outpaintAmount || 50)}
+                onValueChange={(value) => updateNodeData(id, { outpaintAmount: Number(value) })}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25px</SelectItem>
+                  <SelectItem value="50">50px</SelectItem>
+                  <SelectItem value="100">100px</SelectItem>
+                  <SelectItem value="200">200px</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Outpaint Prompt</Label>
+              <Textarea
+                value={data.outpaintPrompt || ''}
+                onChange={(e) => updateNodeData(id, { outpaintPrompt: e.target.value })}
+                placeholder="Describe the extension..."
+                className="text-xs h-16 nodrag"
+              />
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <Card className="min-w-48 p-4 bg-ai-surface border-border shadow-card">
       <div className="flex items-center gap-2 mb-3">
@@ -48,14 +181,7 @@ export const ToolNode = memo(({ id, data }: ToolNodeProps) => {
           Image Tool
         </Badge>
         
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full text-xs"
-        >
-          <Play className="w-3 h-3 mr-1" />
-          Process
-        </Button>
+        {renderSettings()}
       </div>
 
       <Handle

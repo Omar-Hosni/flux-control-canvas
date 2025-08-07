@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -20,6 +20,7 @@ import { ImageInputNode } from './nodes/ImageInputNode';
 import { ControlNetNode } from './nodes/ControlNetNode';
 import { ProcessingNode } from './nodes/ProcessingNode';
 import { ToolNode } from './nodes/ToolNode';
+import { EngineNode } from './nodes/EngineNode';
 import { OutputNode } from './nodes/OutputNode';
 import { WorkflowToolbar } from './WorkflowToolbar';
 import { useWorkflowStore } from '../../stores/workflowStore';
@@ -31,6 +32,7 @@ const nodeTypes: NodeTypes = {
   controlNet: ControlNetNode,
   processing: ProcessingNode,
   tool: ToolNode,
+  engine: EngineNode,
   output: OutputNode,
 };
 
@@ -48,7 +50,16 @@ const initialEdges: Edge[] = [];
 export const WorkflowEditor = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const { isGenerating } = useWorkflowStore();
+  const { isGenerating, setNodes: setStoreNodes, setEdges: setStoreEdges } = useWorkflowStore();
+
+  // Sync local state with store
+  useEffect(() => {
+    setStoreNodes(nodes);
+  }, [nodes, setStoreNodes]);
+
+  useEffect(() => {
+    setStoreEdges(edges);
+  }, [edges, setStoreEdges]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),

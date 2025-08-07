@@ -3,13 +3,22 @@ import { Handle, Position } from '@xyflow/react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import { RotateCcw, Palette, Camera, Shuffle, Play } from 'lucide-react';
+import { useWorkflowStore } from '@/stores/workflowStore';
 
 interface ProcessingNodeProps {
   id: string;
   data: {
     label: string;
     processingType: 'reimagine' | 'reference' | 'rescene' | 'reangle' | 'remix';
+    creativity?: number;
+    referenceType?: string;
+    degrees?: number;
+    direction?: string;
+    weights?: number[];
   };
 }
 
@@ -36,6 +45,96 @@ const getProcessingColor = (type: string) => {
 };
 
 export const ProcessingNode = memo(({ id, data }: ProcessingNodeProps) => {
+  const { updateNodeData } = useWorkflowStore();
+
+  const renderSettings = () => {
+    switch (data.processingType) {
+      case 'reimagine':
+        return (
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Creativity</Label>
+            <Slider
+              value={[data.creativity || 0.8]}
+              onValueChange={(value) => updateNodeData(id, { creativity: value[0] })}
+              max={1}
+              min={0}
+              step={0.1}
+              className="w-full"
+            />
+            <span className="text-xs text-muted-foreground">
+              {((data.creativity || 0.8) * 100).toFixed(0)}%
+            </span>
+          </div>
+        );
+
+      case 'reference':
+        return (
+          <div>
+            <Label className="text-xs text-muted-foreground">Reference Type</Label>
+            <Select
+              value={data.referenceType || 'style'}
+              onValueChange={(value) => updateNodeData(id, { referenceType: value })}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="style">Style</SelectItem>
+                <SelectItem value="product">Product</SelectItem>
+                <SelectItem value="character">Character</SelectItem>
+                <SelectItem value="composition">Composition</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        );
+
+      case 'reangle':
+        return (
+          <div className="space-y-2">
+            <div>
+              <Label className="text-xs text-muted-foreground">Degrees</Label>
+              <Select
+                value={String(data.degrees || 15)}
+                onValueChange={(value) => updateNodeData(id, { degrees: Number(value) })}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5°</SelectItem>
+                  <SelectItem value="10">10°</SelectItem>
+                  <SelectItem value="15">15°</SelectItem>
+                  <SelectItem value="30">30°</SelectItem>
+                  <SelectItem value="45">45°</SelectItem>
+                  <SelectItem value="90">90°</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Direction</Label>
+              <Select
+                value={data.direction || 'right'}
+                onValueChange={(value) => updateNodeData(id, { direction: value })}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="up">Up</SelectItem>
+                  <SelectItem value="down">Down</SelectItem>
+                  <SelectItem value="left">Left</SelectItem>
+                  <SelectItem value="right">Right</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <Card className="min-w-48 p-4 bg-ai-surface border-border shadow-card">
       <div className="flex items-center gap-2 mb-3">
@@ -50,14 +149,7 @@ export const ProcessingNode = memo(({ id, data }: ProcessingNodeProps) => {
           {data.processingType === 'reimagine' ? 'Image-to-Image' : 'Flux Kontext'}
         </Badge>
         
-        <Button
-          variant="ai"
-          size="sm"
-          className="w-full text-xs"
-        >
-          <Play className="w-3 h-3 mr-1" />
-          Generate
-        </Button>
+        {renderSettings()}
       </div>
 
       <Handle

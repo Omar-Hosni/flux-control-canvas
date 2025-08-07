@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Image, Upload, X } from 'lucide-react';
+import { useWorkflowStore } from '@/stores/workflowStore';
 
 interface ImageInputNodeProps {
   id: string;
@@ -37,6 +38,9 @@ export const ImageInputNode = memo(({ id, data }: ImageInputNodeProps) => {
     const file = e.target.files?.[0];
     if (file) {
       handleFileSelect(file);
+      // Store the file for workflow execution
+      const { updateNodeData } = useWorkflowStore.getState();
+      updateNodeData(id, { imageFile: file });
     }
   };
 

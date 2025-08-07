@@ -17,7 +17,8 @@ import {
   ArrowUp,
   PaintBucket,
   Crop,
-  Play
+  Play,
+  Cpu
 } from 'lucide-react';
 
 interface WorkflowToolbarProps {
@@ -45,10 +46,10 @@ export const WorkflowToolbar = ({ onAddNode }: WorkflowToolbarProps) => {
     {
       title: 'Processing',
       nodes: [
-        { type: 'processing', label: 'Re-imagine', icon: RotateCcw, data: { label: 'Re-imagine', processingType: 'reimagine' } },
-        { type: 'processing', label: 'Reference', icon: Palette, data: { label: 'Reference', processingType: 'reference' } },
+        { type: 'processing', label: 'Re-imagine', icon: RotateCcw, data: { label: 'Re-imagine', processingType: 'reimagine', creativity: 0.8 } },
+        { type: 'processing', label: 'Reference', icon: Palette, data: { label: 'Reference', processingType: 'reference', referenceType: 'style' } },
         { type: 'processing', label: 'Re-scene', icon: Camera, data: { label: 'Re-scene', processingType: 'rescene' } },
-        { type: 'processing', label: 'Re-angle', icon: RotateCcw, data: { label: 'Re-angle', processingType: 'reangle' } },
+        { type: 'processing', label: 'Re-angle', icon: RotateCcw, data: { label: 'Re-angle', processingType: 'reangle', degrees: 15, direction: 'right' } },
         { type: 'processing', label: 'Re-mix', icon: Shuffle, data: { label: 'Re-mix', processingType: 'remix' } },
       ]
     },
@@ -56,9 +57,15 @@ export const WorkflowToolbar = ({ onAddNode }: WorkflowToolbarProps) => {
       title: 'Tools',
       nodes: [
         { type: 'tool', label: 'Remove BG', icon: Eraser, data: { label: 'Remove Background', toolType: 'removebg' } },
-        { type: 'tool', label: 'Upscale', icon: ArrowUp, data: { label: 'Upscale', toolType: 'upscale' } },
+        { type: 'tool', label: 'Upscale', icon: ArrowUp, data: { label: 'Upscale', toolType: 'upscale', upscaleFactor: 2 } },
         { type: 'tool', label: 'Inpaint', icon: PaintBucket, data: { label: 'Inpaint', toolType: 'inpaint' } },
-        { type: 'tool', label: 'Outpaint', icon: Crop, data: { label: 'Outpaint', toolType: 'outpaint' } },
+        { type: 'tool', label: 'Outpaint', icon: Crop, data: { label: 'Outpaint', toolType: 'outpaint', outpaintDirection: 'all', outpaintAmount: 50 } },
+      ]
+    },
+    {
+      title: 'Engine',
+      nodes: [
+        { type: 'engine', label: 'Engine', icon: Cpu, data: { label: 'Generation Engine', model: 'runware:101@1', width: 1024, height: 1024, steps: 28, cfgScale: 3.5, strength: 0.8 } },
       ]
     }
   ];
