@@ -38,12 +38,20 @@ const Index = () => {
   };
 
   const handleImageSelect = (file: File) => {
+    console.log('Image selected:', file.name);
     setSelectedImage(file);
     setPreprocessedImage(null);
-    setSelectedPreprocessor(null);
+    // Don't clear preprocessor selection when new image is selected
+    // setSelectedPreprocessor(null);
   };
 
   const handlePreprocess = async () => {
+    console.log('Preprocessing attempt:', { 
+      hasImage: !!selectedImage, 
+      preprocessor: selectedPreprocessor, 
+      hasService: !!runwareService 
+    });
+    
     if (!selectedImage || !selectedPreprocessor || !runwareService) {
       toast.error('Please select an image and preprocessor');
       return;
