@@ -31,6 +31,76 @@ export interface GenerateImageParams {
   }>;
 }
 
+// Image-to-Image generation parameters
+export interface ImageToImageParams {
+  positivePrompt: string;
+  inputImage: string;
+  strength: number;
+  model?: string;
+  numberResults?: number;
+  outputFormat?: string;
+  width?: number;
+  height?: number;
+  steps?: number;
+  CFGScale?: number;
+  scheduler?: string;
+}
+
+// Flux Kontext parameters
+export interface FluxKontextParams {
+  positivePrompt: string;
+  inputImages: string[];
+  model?: string;
+  numberResults?: number;
+  outputFormat?: string;
+  width?: number;
+  height?: number;
+  steps?: number;
+  CFGScale?: number;
+  ipadapters?: Array<{
+    imageURL: string;
+    weight: number;
+  }>;
+}
+
+// Background removal parameters
+export interface BackgroundRemovalParams {
+  inputImage: string;
+  outputFormat?: string;
+}
+
+// Upscaling parameters
+export interface UpscaleParams {
+  inputImage: string;
+  upscaleFactor: number;
+  outputFormat?: string;
+}
+
+// Inpainting parameters
+export interface InpaintParams {
+  inputImage: string;
+  maskImage: string;
+  positivePrompt: string;
+  model?: string;
+  outputFormat?: string;
+  width?: number;
+  height?: number;
+  steps?: number;
+  CFGScale?: number;
+}
+
+// Outpainting parameters
+export interface OutpaintParams {
+  inputImage: string;
+  positivePrompt: string;
+  outpaintDirection: 'up' | 'down' | 'left' | 'right' | 'all';
+  outpaintAmount: number;
+  model?: string;
+  outputFormat?: string;
+  steps?: number;
+  CFGScale?: number;
+}
+
 export interface GeneratedImage {
   imageURL: string;
   positivePrompt: string;
@@ -42,6 +112,13 @@ export interface GeneratedImage {
 export interface PreprocessedImage {
   imageURL: string;
   preprocessor: string;
+}
+
+// Processed image result interface
+export interface ProcessedImageResult {
+  imageURL: string;
+  taskType: string;
+  cost?: number;
 }
 
 export class RunwareService {
@@ -247,6 +324,297 @@ export class RunwareService {
       });
 
       this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  // Image-to-Image generation (re-imagine)
+  async generateImageToImage(params: ImageToImageParams): Promise<GeneratedImage> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageInference",
+        taskUUID,
+        model: params.model || "runware:101@1",
+        numberResults: params.numberResults || 1,
+        outputFormat: params.outputFormat || "JPEG",
+        width: params.width || 1024,
+        height: params.height || 1024,
+        steps: params.steps || 28,
+        CFGScale: params.CFGScale || 3.5,
+        scheduler: params.scheduler || "FlowMatchEulerDiscreteScheduler",
+        includeCost: true,
+        outputType: ["URL"],
+        positivePrompt: params.positivePrompt,
+        inputImage: params.inputImage,
+        strength: params.strength
+      }];
+
+      console.log("Sending image-to-image generation message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve(data);
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  // Flux Kontext generation
+  async generateFluxKontext(params: FluxKontextParams): Promise<GeneratedImage> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageInference",
+        taskUUID,
+        model: params.model || "runware:502@1", // Flux Kontext model
+        numberResults: params.numberResults || 1,
+        outputFormat: params.outputFormat || "JPEG",
+        width: params.width || 1024,
+        height: params.height || 1024,
+        steps: params.steps || 28,
+        CFGScale: params.CFGScale || 3.5,
+        includeCost: true,
+        outputType: ["URL"],
+        positivePrompt: params.positivePrompt,
+        inputImages: params.inputImages,
+        ...(params.ipadapters && { ipadapters: params.ipadapters })
+      }];
+
+      console.log("Sending Flux Kontext generation message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve(data);
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  // Background removal
+  async removeBackground(params: BackgroundRemovalParams): Promise<ProcessedImageResult> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageBackgroundRemoval",
+        taskUUID,
+        inputImage: params.inputImage,
+        outputFormat: params.outputFormat || "PNG",
+        outputType: ["URL"]
+      }];
+
+      console.log("Sending background removal message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve({
+            imageURL: data.imageURL,
+            taskType: "imageBackgroundRemoval",
+            cost: data.cost
+          });
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  // Image upscaling
+  async upscaleImage(params: UpscaleParams): Promise<ProcessedImageResult> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageUpscale",
+        taskUUID,
+        inputImage: params.inputImage,
+        upscaleFactor: params.upscaleFactor,
+        outputFormat: params.outputFormat || "JPEG",
+        outputType: ["URL"]
+      }];
+
+      console.log("Sending upscale message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve({
+            imageURL: data.imageURL,
+            taskType: "imageUpscale",
+            cost: data.cost
+          });
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  // Image inpainting
+  async inpaintImage(params: InpaintParams): Promise<GeneratedImage> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageInference",
+        taskUUID,
+        model: params.model || "runware:100@1",
+        outputFormat: params.outputFormat || "JPEG",
+        width: params.width || 1024,
+        height: params.height || 1024,
+        steps: params.steps || 28,
+        CFGScale: params.CFGScale || 3.5,
+        includeCost: true,
+        outputType: ["URL"],
+        positivePrompt: params.positivePrompt,
+        inputImage: params.inputImage,
+        maskImage: params.maskImage
+      }];
+
+      console.log("Sending inpainting message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve(data);
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  // Image outpainting
+  async outpaintImage(params: OutpaintParams): Promise<GeneratedImage> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageInference",
+        taskUUID,
+        model: params.model || "runware:100@1",
+        outputFormat: params.outputFormat || "JPEG",
+        steps: params.steps || 28,
+        CFGScale: params.CFGScale || 3.5,
+        includeCost: true,
+        outputType: ["URL"],
+        positivePrompt: params.positivePrompt,
+        inputImage: params.inputImage,
+        outpaintDirection: params.outpaintDirection,
+        outpaintAmount: params.outpaintAmount
+      }];
+
+      console.log("Sending outpainting message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve(data);
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  // Specialized Flux Kontext methods for different node types
+  
+  // Reference node: apply changes based on reference type
+  async generateReference(inputImage: string, prompt: string, referenceType: string): Promise<GeneratedImage> {
+    const enhancedPrompt = `Apply ${referenceType} reference: ${prompt}`;
+    return this.generateFluxKontext({
+      positivePrompt: enhancedPrompt,
+      inputImages: [inputImage]
+    });
+  }
+
+  // Re-scene node: blend object with scene
+  async generateReScene(objectImage: string, sceneImage: string): Promise<GeneratedImage> {
+    const prompt = "Blend this object into this scene while maintaining all details and realistic lighting";
+    return this.generateFluxKontext({
+      positivePrompt: prompt,
+      inputImages: [objectImage, sceneImage]
+    });
+  }
+
+  // Re-angle node: change camera angle
+  async generateReAngle(inputImage: string, degrees: number, direction: string): Promise<GeneratedImage> {
+    const prompt = `Change camera angle of this image by ${degrees} degrees to ${direction} direction`;
+    return this.generateFluxKontext({
+      positivePrompt: prompt,
+      inputImages: [inputImage]
+    });
+  }
+
+  // Re-mix node: blend multiple images using ipadapters
+  async generateReMix(inputImages: string[], weights?: number[]): Promise<GeneratedImage> {
+    const ipadapters = inputImages.map((imageURL, index) => ({
+      imageURL,
+      weight: weights?.[index] || 1.0
+    }));
+
+    const prompt = "Creatively blend and remix these images into a cohesive composition";
+    return this.generateFluxKontext({
+      positivePrompt: prompt,
+      inputImages,
+      ipadapters
     });
   }
 
