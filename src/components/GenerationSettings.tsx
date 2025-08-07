@@ -52,7 +52,7 @@ export const GenerationSettings = ({
         guideImage: preprocessedImageUrl,
         weight: controlWeight[0],
         startStep: 0,
-        endStep: 50,
+        endStep: steps[0],
         controlMode: 'balanced'
       }] : undefined
     };
