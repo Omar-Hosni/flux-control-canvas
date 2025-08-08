@@ -29,7 +29,7 @@ import {
 const Index = () => {
   const [apiKey, setApiKey] = useState<string | null>("J9GGKxXu8hDhbW1mXOPaNHBH8S48QnhT");
   const [runwareService, setRunwareService] = useState<RunwareService | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("controlnet");
+  const [activeTab, setActiveTab] = useState<string>("texttoimage");
   
   // ControlNet states
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -152,6 +152,7 @@ const Index = () => {
     } catch (error) {
       console.error('Generation failed:', error);
       toast.error('Failed to generate image. Please try again.');
+      setIsGenerating(false); // Reset state immediately on error
     } finally {
       setIsGenerating(false);
     }
@@ -188,6 +189,7 @@ const Index = () => {
     } catch (error) {
       console.error('Generation failed:', error);
       toast.error('Failed to generate image. Please try again.');
+      setIsGenerating(false); // Reset state immediately on error
     } finally {
       setIsGenerating(false);
     }
@@ -428,9 +430,9 @@ const Index = () => {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="controlnet" className="gap-2">
+            <TabsTrigger value="texttoimage" className="gap-2">
               <Zap className="w-4 h-4" />
-              ControlNet
+              Text-to-Image
             </TabsTrigger>
             <TabsTrigger value="img2img" className="gap-2">
               <ImageIcon className="w-4 h-4" />
@@ -445,8 +447,8 @@ const Index = () => {
               Flux Kontext
             </TabsTrigger>
           </TabsList>
-          {/* ControlNet Tab */}
-          <TabsContent value="controlnet">
+          {/* Text-to-Image Tab */}
+          <TabsContent value="texttoimage">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Left Column - Upload & Preprocessing */}
               <div className="lg:col-span-1 space-y-6">

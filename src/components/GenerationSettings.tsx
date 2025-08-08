@@ -8,7 +8,8 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Sparkles, Settings, Sliders } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Sparkles, Settings, Sliders, Zap, Palette } from 'lucide-react';
 import type { GenerateImageParams } from '@/services/RunwareService';
 
 interface GenerationSettingsProps {
@@ -17,6 +18,19 @@ interface GenerationSettingsProps {
   hasPreprocessedImage: boolean;
   preprocessedImageUrl?: string;
 }
+
+interface LoRA {
+  name: string;
+  model: string;
+  weight: number;
+}
+
+const AVAILABLE_LORAS = [
+  { name: 'None', model: '', weight: 1 },
+  { name: 'Amateur Photography', model: 'civitai:652699@993999', weight: 1 },
+  { name: 'Detail Tweaker', model: 'civitai:58390@62833', weight: 1 },
+  { name: 'Realistic', model: 'civitai:796382@1026423', weight: 1 },
+];
 
 export const GenerationSettings = ({
   onGenerate,
@@ -31,15 +45,54 @@ export const GenerationSettings = ({
   const [width, setWidth] = useState([1024]);
   const [height, setHeight] = useState([1024]);
   const [controlWeight, setControlWeight] = useState([1]);
+  const [controlEndStep, setControlEndStep] = useState([27]);
   const [scheduler, setScheduler] = useState('FlowMatchEulerDiscreteScheduler');
   const [model, setModel] = useState('runware:101@1');
+  
+  // LoRA settings
+  const [selectedLoras, setSelectedLoras] = useState<LoRA[]>([]);
+  
+  // Accelerator settings
+  const [useAccelerator, setUseAccelerator] = useState(false);
+  const [teaCacheDistance, setTeaCacheDistance] = useState([0.5]);
+
+  const handleAddLora = () => {
+    if (selectedLoras.length < 4) { // Limit to 4 LoRAs
+      setSelectedLoras([...selectedLoras, { name: 'Amateur Photography', model: 'civitai:652699@993999', weight: 1 }]);
+    }
+  };
+
+  const handleRemoveLora = (index: number) => {
+    setSelectedLoras(selectedLoras.filter((_, i) => i !== index));
+  };
+
+  const handleLoraChange = (index: number, field: string, value: any) => {
+    const updatedLoras = [...selectedLoras];
+    if (field === 'model') {
+      const loraOption = AVAILABLE_LORAS.find(lora => lora.model === value);
+      if (loraOption) {
+        updatedLoras[index] = { ...updatedLoras[index], name: loraOption.name, model: value };
+      }
+    } else {
+      updatedLoras[index] = { ...updatedLoras[index], [field]: value };
+    }
+    setSelectedLoras(updatedLoras);
+  };
 
   const handleGenerate = () => {
-    console.log('Generation params:', { steps: steps[0], hasPreprocessedImage, preprocessedImageUrl });
-    if (!prompt.trim() || !hasPreprocessedImage) return;
+    if (!prompt.trim()) return;
+
+    // Build LoRA array for API
+    const loraArray = selectedLoras
+      .filter(lora => lora.model !== '') // Exclude "None" selections
+      .map(lora => ({
+        model: lora.model,
+        weight: lora.weight
+      }));
 
     const params: GenerateImageParams = {
       positivePrompt: prompt,
+      negativePrompt: negativePrompt || undefined,
       model,
       numberResults: 1,
       outputFormat: 'JPEG',
@@ -48,17 +101,23 @@ export const GenerationSettings = ({
       steps: steps[0],
       CFGScale: cfgScale[0],
       scheduler,
+      lora: loraArray.length > 0 ? loraArray : [],
+      ...(useAccelerator && {
+        acceleratorOptions: {
+          teaCache: true,
+          teaCacheDistance: teaCacheDistance[0]
+        }
+      }),
       controlNet: preprocessedImageUrl ? [{
         model: 'runware:29@1', // CNFlux ControlNet
         guideImage: preprocessedImageUrl,
         weight: controlWeight[0],
         startStep: 1,
-        endStep: Math.max(1, steps[0] - 1),
+        endStep: controlEndStep[0],
         controlMode: 'balanced'
       }] : undefined
     };
 
-    console.log('Final params being sent:', params);
     onGenerate(params);
   };
 
@@ -84,7 +143,7 @@ export const GenerationSettings = ({
         {/* Prompt */}
         <div className="space-y-3">
           <Label htmlFor="prompt" className="text-sm font-medium">
-            Prompt
+            Prompt *
           </Label>
           <Textarea
             id="prompt"
@@ -92,6 +151,20 @@ export const GenerationSettings = ({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="min-h-20 bg-ai-surface-elevated border-border focus:border-primary/50"
+          />
+        </div>
+
+        {/* Negative Prompt */}
+        <div className="space-y-3">
+          <Label htmlFor="negativePrompt" className="text-sm font-medium">
+            Negative Prompt (Optional)
+          </Label>
+          <Textarea
+            id="negativePrompt"
+            placeholder="Describe what to avoid in the image..."
+            value={negativePrompt}
+            onChange={(e) => setNegativePrompt(e.target.value)}
+            className="min-h-16 bg-ai-surface-elevated border-border focus:border-primary/50"
           />
         </div>
 
@@ -183,6 +256,108 @@ export const GenerationSettings = ({
           </div>
         </div>
 
+        {/* LoRA Selection */}
+        <div className="space-y-3 p-4 bg-ai-surface-elevated rounded-lg border border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Palette className="w-4 h-4 text-primary" />
+              <Label className="text-sm font-medium">LoRA Models</Label>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleAddLora}
+              disabled={selectedLoras.length >= 4}
+            >
+              Add LoRA
+            </Button>
+          </div>
+          
+          {selectedLoras.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No LoRAs selected</p>
+          ) : (
+            <div className="space-y-3">
+              {selectedLoras.map((lora, index) => (
+                <div key={index} className="flex items-center gap-3 p-3 bg-ai-surface rounded border">
+                  <div className="flex-1">
+                    <Select 
+                      value={lora.model} 
+                      onValueChange={(value) => handleLoraChange(index, 'model', value)}
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AVAILABLE_LORAS.map((availableLora) => (
+                          <SelectItem key={availableLora.model} value={availableLora.model}>
+                            {availableLora.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-20">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={lora.weight}
+                      onChange={(e) => handleLoraChange(index, 'weight', parseFloat(e.target.value) || 1)}
+                      className="h-8 text-center"
+                    />
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleRemoveLora(index)}
+                    className="h-8 w-8 p-0"
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Accelerator Settings */}
+        <div className="space-y-3 p-4 bg-ai-surface-elevated rounded-lg border border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-primary" />
+              <Label className="text-sm font-medium">Accelerator</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="accelerator"
+                checked={useAccelerator}
+                onCheckedChange={(checked) => setUseAccelerator(checked === true)}
+              />
+              <Label htmlFor="accelerator" className="text-sm">Enable TeaCache</Label>
+            </div>
+          </div>
+          
+          {useAccelerator && (
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">
+                TeaCache Distance: {teaCacheDistance[0]}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Higher values = faster generation, lower values = better quality
+              </p>
+              <Slider
+                value={teaCacheDistance}
+                onValueChange={setTeaCacheDistance}
+                min={0}
+                max={1}
+                step={0.1}
+                className="w-full"
+              />
+            </div>
+          )}
+        </div>
+
         {/* ControlNet Settings */}
         {hasPreprocessedImage && (
           <div className="space-y-3 p-4 bg-ai-surface-elevated rounded-lg border border-border">
@@ -191,18 +366,33 @@ export const GenerationSettings = ({
               <Label className="text-sm font-medium">ControlNet Settings</Label>
               <Badge variant="secondary" className="text-xs">Active</Badge>
             </div>
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">
-                Control Weight: {controlWeight[0]}
-              </Label>
-              <Slider
-                value={controlWeight}
-                onValueChange={setControlWeight}
-                min={0}
-                max={2}
-                step={0.1}
-                className="w-full"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">
+                  Control Weight: {controlWeight[0]}
+                </Label>
+                <Slider
+                  value={controlWeight}
+                  onValueChange={setControlWeight}
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">
+                  End Step: {controlEndStep[0]}
+                </Label>
+                <Slider
+                  value={controlEndStep}
+                  onValueChange={setControlEndStep}
+                  min={1}
+                  max={steps[0]}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -212,7 +402,7 @@ export const GenerationSettings = ({
           variant="generate"
           size="xl"
           onClick={handleGenerate}
-          disabled={!prompt.trim() || !hasPreprocessedImage || isGenerating}
+          disabled={!prompt.trim() || isGenerating}
           className="w-full"
         >
           {isGenerating ? (
@@ -230,7 +420,7 @@ export const GenerationSettings = ({
 
         {!hasPreprocessedImage && (
           <p className="text-sm text-muted-foreground text-center">
-            Upload and preprocess an image first to enable generation
+            Upload and preprocess an image first to enable ControlNet features
           </p>
         )}
       </div>

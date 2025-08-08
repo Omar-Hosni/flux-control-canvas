@@ -4,6 +4,7 @@ const API_ENDPOINT = "wss://ws-api.runware.ai/v1";
 
 export interface GenerateImageParams {
   positivePrompt: string;
+  negativePrompt?: string;
   model?: string;
   numberResults?: number;
   outputFormat?: string;
@@ -12,10 +13,17 @@ export interface GenerateImageParams {
   strength?: number;
   promptWeighting?: "compel" | "sdEmbeds";
   seed?: number | null;
-  lora?: string[];
+  lora?: Array<{
+    model: string;
+    weight: number;
+  }>;
   width?: number;
   height?: number;
   steps?: number;
+  acceleratorOptions?: {
+    teaCache: boolean;
+    teaCacheDistance: number;
+  };
   controlNet?: Array<{
     model: string;
     guideImage: string;
@@ -363,6 +371,8 @@ export class RunwareService {
         includeCost: true,
         outputType: ["URL"],
         positivePrompt: params.positivePrompt,
+        ...(params.negativePrompt && { negativePrompt: params.negativePrompt }),
+        ...(params.acceleratorOptions && { acceleratorOptions: params.acceleratorOptions }),
         ...(params.controlNet && { controlNet: params.controlNet }),
         ...(params.seedImage && { seedImage: params.seedImage }),
         ...(params.strength && { strength: params.strength })
