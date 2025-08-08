@@ -147,17 +147,19 @@ const Index = () => {
 
     setIsGenerating(true);
     try {
-      const imageUrl = URL.createObjectURL(img2imgImage);
-      const params: ImageToImageParams = {
+      // Upload the seed image first
+      const uploadedImageUrl = await runwareService.uploadImage(img2imgImage);
+      
+      const params: GenerateImageParams = {
         positivePrompt: img2imgPrompt,
-        inputImage: imageUrl,
-        strength: img2imgStrength,
+        seedImage: uploadedImageUrl, // Use as seed image parameter
+        noise: img2imgStrength, // Creativity slider controls noise
         model: 'runware:100@1',
         numberResults: 1,
         outputFormat: 'WEBP'
       };
 
-      const result = await runwareService.generateImageToImage(params);
+      const result = await runwareService.generateImage(params);
       setGeneratedImages(prev => [result, ...prev]);
       toast.success('Image generated successfully!');
     } catch (error) {
@@ -468,8 +470,11 @@ const Index = () => {
                     
                     <div>
                       <Label className="text-sm font-medium">
-                        Strength: {(img2imgStrength * 100).toFixed(0)}%
+                        Creativity: {(img2imgStrength * 100).toFixed(0)}%
                       </Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Higher values allow more creative deviation from the seed image
+                      </p>
                       <Slider
                         value={[img2imgStrength]}
                         onValueChange={(value) => setImg2imgStrength(value[0])}
