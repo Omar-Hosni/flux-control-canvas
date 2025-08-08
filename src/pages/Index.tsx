@@ -268,40 +268,62 @@ const Index = () => {
       const uploadedImageUrl = await runwareService.uploadImage(fluxImage);
       let result;
 
-      if (fluxKontextPro) {
-        // Use Flux Kontext Pro (bfl:3@1)
-        const dimensions = getDimensionsFromRatio(sizeRatio);
-        result = await runwareService.generateFluxKontext({
-          referenceImages: [uploadedImageUrl],
-          positivePrompt: fluxPrompt,
-          model: 'bfl:3@1',
-          width: dimensions.width,
-          height: dimensions.height
-        });
-      } else {
-        // Use regular Flux Kontext
-        switch (fluxType) {
-          case 'reference':
-            result = await runwareService.generateReference(
-              uploadedImageUrl,
-              fluxPrompt,
-              referenceType
-            );
-            break;
-          case 'reimagine':
-            result = await runwareService.generateImageToImage({
-              positivePrompt: fluxPrompt,
-              inputImage: uploadedImageUrl,
-              strength: creativity
-            });
-            break;
-          default:
-            result = await runwareService.generateFluxKontext({
-              referenceImages: [uploadedImageUrl],
-              positivePrompt: fluxPrompt,
-              model: 'runware:106@1'
-            });
-        }
+      // Get transformation type - use 'reference' as default for Kontext Pro
+      const transformationType = fluxKontextPro ? 'reference' : fluxType;
+
+      switch (transformationType) {
+        case 'reference':
+          result = await runwareService.generateReference(
+            uploadedImageUrl,
+            fluxPrompt,
+            referenceType,
+            fluxKontextPro,
+            fluxKontextPro ? sizeRatio : undefined
+          );
+          break;
+        case 'reimagine':
+          result = await runwareService.generateReImagine(
+            uploadedImageUrl,
+            fluxPrompt,
+            fluxKontextPro,
+            fluxKontextPro ? sizeRatio : undefined
+          );
+          break;
+        case 'rescene':
+          // For rescene, we'll use the same image as both object and scene
+          // In a real app, you'd want two separate inputs
+          result = await runwareService.generateReScene(
+            uploadedImageUrl,
+            uploadedImageUrl,
+            fluxKontextPro,
+            fluxKontextPro ? sizeRatio : undefined
+          );
+          break;
+        case 'reangle':
+          result = await runwareService.generateReAngle(
+            uploadedImageUrl,
+            15, // default degrees
+            'right', // default direction
+            fluxKontextPro,
+            fluxKontextPro ? sizeRatio : undefined
+          );
+          break;
+        case 'remix':
+          result = await runwareService.generateReMix(
+            [uploadedImageUrl],
+            fluxKontextPro,
+            fluxKontextPro ? sizeRatio : undefined
+          );
+          break;
+        default:
+          // Fallback to basic reference
+          result = await runwareService.generateReference(
+            uploadedImageUrl,
+            fluxPrompt,
+            'style',
+            fluxKontextPro,
+            fluxKontextPro ? sizeRatio : undefined
+          );
       }
 
       setGeneratedImages(prev => [result, ...prev]);
@@ -886,72 +908,91 @@ const Index = () => {
                        </p>
                      </div>
 
-                     {fluxKontextPro ? (
-                       <div>
-                         <Label className="text-sm font-medium">Size Ratio</Label>
-                         <Select value={sizeRatio} onValueChange={setSizeRatio}>
-                           <SelectTrigger>
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="1:1">1:1 (1024×1024)</SelectItem>
-                             <SelectItem value="21:9">21:9 (1568×672)</SelectItem>
-                             <SelectItem value="16:9">16:9 (1456×816)</SelectItem>
-                             <SelectItem value="4:3">4:3 (1216×912)</SelectItem>
-                             <SelectItem value="3:2">3:2 (1344×896)</SelectItem>
-                           </SelectContent>
-                         </Select>
-                       </div>
-                     ) : (
-                       <div>
-                         <Label className="text-sm font-medium">Transformation Type</Label>
-                         <Select value={fluxType} onValueChange={setFluxType}>
-                           <SelectTrigger>
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="reference">Reference</SelectItem>
-                             <SelectItem value="reimagine">Re-imagine</SelectItem>
-                             <SelectItem value="rescene">Re-scene</SelectItem>
-                             <SelectItem value="reangle">Re-angle</SelectItem>
-                             <SelectItem value="remix">Re-mix</SelectItem>
-                           </SelectContent>
-                         </Select>
-                       </div>
-                     )}
+                      {fluxKontextPro ? (
+                        <div>
+                          <Label className="text-sm font-medium">Size Ratio</Label>
+                          <Select value={sizeRatio} onValueChange={setSizeRatio}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1:1">1:1 (1024×1024)</SelectItem>
+                              <SelectItem value="21:9">21:9 (1568×672)</SelectItem>
+                              <SelectItem value="16:9">16:9 (1456×816)</SelectItem>
+                              <SelectItem value="4:3">4:3 (1216×912)</SelectItem>
+                              <SelectItem value="3:2">3:2 (1344×896)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <div>
+                          <Label className="text-sm font-medium">Transformation Type</Label>
+                          <Select value={fluxType} onValueChange={setFluxType}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="reference">Reference</SelectItem>
+                              <SelectItem value="reimagine">Re-imagine</SelectItem>
+                              <SelectItem value="rescene">Re-scene</SelectItem>
+                              <SelectItem value="reangle">Re-angle</SelectItem>
+                              <SelectItem value="remix">Re-mix</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {/* Show transformation types for Kontext Pro too */}
+                      {fluxKontextPro && (
+                        <div>
+                          <Label className="text-sm font-medium">Transformation Type</Label>
+                          <Select value={fluxType} onValueChange={setFluxType}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="reference">Reference</SelectItem>
+                              <SelectItem value="reimagine">Re-imagine</SelectItem>
+                              <SelectItem value="rescene">Re-scene</SelectItem>
+                              <SelectItem value="reangle">Re-angle</SelectItem>
+                              <SelectItem value="remix">Re-mix</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     
-                     {!fluxKontextPro && fluxType === 'reference' && (
-                       <div>
-                         <Label className="text-sm font-medium">Reference Type</Label>
-                         <Select value={referenceType} onValueChange={setReferenceType}>
-                           <SelectTrigger>
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="style">Style</SelectItem>
-                             <SelectItem value="product">Product</SelectItem>
-                             <SelectItem value="character">Character</SelectItem>
-                             <SelectItem value="composition">Composition</SelectItem>
-                           </SelectContent>
-                         </Select>
-                       </div>
-                     )}
-                     
-                     {!fluxKontextPro && fluxType === 'reimagine' && (
-                       <div>
-                         <Label className="text-sm font-medium">
-                           Creativity: {(creativity * 100).toFixed(0)}%
-                         </Label>
-                         <Slider
-                           value={[creativity]}
-                           onValueChange={(value) => setCreativity(value[0])}
-                           max={1}
-                           min={0}
-                           step={0.1}
-                           className="mt-2"
-                         />
-                       </div>
-                     )}
+                      {fluxType === 'reference' && (
+                        <div>
+                          <Label className="text-sm font-medium">Reference Type</Label>
+                          <Select value={referenceType} onValueChange={setReferenceType}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="style">Style</SelectItem>
+                              <SelectItem value="product">Product</SelectItem>
+                              <SelectItem value="character">Character</SelectItem>
+                              <SelectItem value="composition">Composition</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      
+                      {fluxType === 'reimagine' && (
+                        <div>
+                          <Label className="text-sm font-medium">
+                            Creativity: {(creativity * 100).toFixed(0)}%
+                          </Label>
+                          <Slider
+                            value={[creativity]}
+                            onValueChange={(value) => setCreativity(value[0])}
+                            max={1}
+                            min={0}
+                            step={0.1}
+                            className="mt-2"
+                          />
+                        </div>
+                      )}
                     
                     <div>
                       <Label className="text-sm font-medium">Prompt</Label>
