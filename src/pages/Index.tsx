@@ -41,6 +41,9 @@ const Index = () => {
   const [img2imgStrength, setImg2imgStrength] = useState<number>(0.8);
   const [img2imgSteps, setImg2imgSteps] = useState<number>(30);
   const [img2imgPrompt, setImg2imgPrompt] = useState<string>("");
+  const [img2imgWidth, setImg2imgWidth] = useState<number>(1024);
+  const [img2imgHeight, setImg2imgHeight] = useState<number>(1024);
+  const [img2imgCfgScale, setImg2imgCfgScale] = useState<number>(3.5);
   
   // Tools states
   const [toolImage, setToolImage] = useState<File | null>(null);
@@ -178,8 +181,9 @@ const Index = () => {
         model: 'runware:101@1',
         numberResults: 1,
         outputFormat: 'WEBP',
-        width: 1024,
-        height: 1024,
+        width: img2imgWidth,
+        height: img2imgHeight,
+        CFGScale: img2imgCfgScale,
         steps: img2imgSteps
       });
 
@@ -605,6 +609,52 @@ const Index = () => {
                         max={1}
                         min={0}
                         step={0.1}
+                        className="mt-2"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Width: {img2imgWidth}px
+                        </Label>
+                        <Slider
+                          value={[img2imgWidth]}
+                          onValueChange={(value) => setImg2imgWidth(value[0])}
+                          min={512}
+                          max={1536}
+                          step={64}
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Height: {img2imgHeight}px
+                        </Label>
+                        <Slider
+                          value={[img2imgHeight]}
+                          onValueChange={(value) => setImg2imgHeight(value[0])}
+                          min={512}
+                          max={1536}
+                          step={64}
+                          className="mt-2"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium">
+                        CFG Scale: {img2imgCfgScale}
+                      </Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Controls adherence to prompt (higher = more strict)
+                      </p>
+                      <Slider
+                        value={[img2imgCfgScale]}
+                        onValueChange={(value) => setImg2imgCfgScale(value[0])}
+                        min={1}
+                        max={20}
+                        step={0.5}
                         className="mt-2"
                       />
                     </div>
