@@ -156,19 +156,20 @@ const Index = () => {
       // Upload the seed image first
       const uploadedImageUrl = await runwareService.uploadImage(img2imgImage);
       
-      const params: GenerateImageParams = {
+      // Use the dedicated image-to-image method with strength parameter
+      const result = await runwareService.generateImageToImage({
         positivePrompt: img2imgPrompt,
-        seedImage: uploadedImageUrl, // Use as seed image parameter
-        noise: img2imgStrength, // Creativity slider controls noise
+        inputImage: uploadedImageUrl,
+        strength: img2imgStrength, // Use strength parameter as per docs
         model: 'runware:101@1',
         numberResults: 1,
         outputFormat: 'WEBP',
         width: 1024,
         height: 1024,
         steps: img2imgSteps
-      };
+      });
 
-      const result = await runwareService.generateImage(params);
+      
       setGeneratedImages(prev => [result, ...prev]);
       toast.success('Image generated successfully!');
     } catch (error) {

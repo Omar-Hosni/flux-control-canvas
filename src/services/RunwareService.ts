@@ -30,7 +30,6 @@ export interface GenerateImageParams {
     controlMode: string;
   }>;
   seedImage?: string; // For image-to-image generation
-  noise?: number; // Creativity/noise control
 }
 
 // Image-to-Image generation parameters
@@ -315,8 +314,7 @@ export class RunwareService {
         outputType: ["URL"],
         positivePrompt: params.positivePrompt,
         ...(params.controlNet && { controlNet: params.controlNet }),
-        ...(params.seedImage && { seedImage: params.seedImage }),
-        ...(params.noise && { noise: params.noise })
+        ...(params.seedImage && { seedImage: params.seedImage })
       }];
 
       console.log("Sending image generation message:", message);
