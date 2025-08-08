@@ -193,7 +193,7 @@ export class WorkflowExecutor {
         case 'inpaint':
           if (!node.data.maskImage) return null;
           const inpaintResult = await this.runwareService.inpaintImage({
-            inputImage: inputImageUrl,
+            seedImage: inputImageUrl,
             maskImage: node.data.maskImage as string,
             positivePrompt: (node.data.inpaintPrompt as string) || 'fill the masked area naturally'
           });

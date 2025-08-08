@@ -39,14 +39,20 @@ const Index = () => {
   // Image-to-Image states
   const [img2imgImage, setImg2imgImage] = useState<File | null>(null);
   const [img2imgStrength, setImg2imgStrength] = useState<number>(0.8);
+  const [img2imgSteps, setImg2imgSteps] = useState<number>(30);
   const [img2imgPrompt, setImg2imgPrompt] = useState<string>("");
   
   // Tools states
   const [toolImage, setToolImage] = useState<File | null>(null);
   const [toolType, setToolType] = useState<string>("removebg");
   const [upscaleFactor, setUpscaleFactor] = useState<number>(2);
+  const [upscaleWidth, setUpscaleWidth] = useState<number>(1024);
+  const [upscaleHeight, setUpscaleHeight] = useState<number>(1024);
   const [maskImage, setMaskImage] = useState<File | null>(null);
   const [inpaintPrompt, setInpaintPrompt] = useState<string>("");
+  const [outpaintDirection, setOutpaintDirection] = useState<'up' | 'down' | 'left' | 'right' | 'all'>('all');
+  const [outpaintAmount, setOutpaintAmount] = useState<number>(50);
+  const [outpaintPrompt, setOutpaintPrompt] = useState<string>("");
   
   // Flux Kontext states
   const [fluxImage, setFluxImage] = useState<File | null>(null);
@@ -154,9 +160,12 @@ const Index = () => {
         positivePrompt: img2imgPrompt,
         seedImage: uploadedImageUrl, // Use as seed image parameter
         noise: img2imgStrength, // Creativity slider controls noise
-        model: 'runware:100@1',
+        model: 'runware:101@1',
         numberResults: 1,
-        outputFormat: 'WEBP'
+        outputFormat: 'WEBP',
+        width: 1024,
+        height: 1024,
+        steps: img2imgSteps
       };
 
       const result = await runwareService.generateImage(params);
@@ -179,17 +188,20 @@ const Index = () => {
 
     setIsProcessing(true);
     try {
-      const imageUrl = URL.createObjectURL(toolImage);
+      // Upload the image first to get UUID
+      const uploadedImageUrl = await runwareService.uploadImage(toolImage);
       let result;
 
       switch (toolType) {
         case 'removebg':
-          result = await runwareService.removeBackground({ inputImage: imageUrl });
+          result = await runwareService.removeBackground({ inputImage: uploadedImageUrl });
           break;
         case 'upscale':
           result = await runwareService.upscaleImage({ 
-            inputImage: imageUrl, 
-            upscaleFactor 
+            inputImage: uploadedImageUrl, 
+            upscaleFactor,
+            width: upscaleWidth,
+            height: upscaleHeight
           });
           break;
         case 'inpaint':
@@ -197,11 +209,23 @@ const Index = () => {
             toast.error('Please provide mask image and prompt for inpainting');
             return;
           }
-          const maskUrl = URL.createObjectURL(maskImage);
+          const uploadedMaskUrl = await runwareService.uploadImage(maskImage);
           result = await runwareService.inpaintImage({
-            inputImage: imageUrl,
-            maskImage: maskUrl,
+            seedImage: uploadedImageUrl, // Use seedImage instead of inputImage
+            maskImage: uploadedMaskUrl,
             positivePrompt: inpaintPrompt
+          });
+          break;
+        case 'outpaint':
+          if (!outpaintPrompt) {
+            toast.error('Please provide a prompt for outpainting');
+            return;
+          }
+          result = await runwareService.outpaintImage({
+            inputImage: uploadedImageUrl,
+            positivePrompt: outpaintPrompt,
+            outpaintDirection,
+            outpaintAmount
           });
           break;
         default:
@@ -485,6 +509,23 @@ const Index = () => {
                       />
                     </div>
                     
+                    <div>
+                      <Label className="text-sm font-medium">
+                        Steps: {img2imgSteps}
+                      </Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Number of generation steps (higher = better quality, slower)
+                      </p>
+                      <Slider
+                        value={[img2imgSteps]}
+                        onValueChange={(value) => setImg2imgSteps(value[0])}
+                        max={100}
+                        min={10}
+                        step={5}
+                        className="mt-2"
+                      />
+                    </div>
+                    
                     <Button
                       onClick={handleImg2ImgGenerate}
                       disabled={!img2imgImage || !img2imgPrompt || isGenerating}
@@ -584,27 +625,57 @@ const Index = () => {
                           <SelectItem value="removebg">Remove Background</SelectItem>
                           <SelectItem value="upscale">Upscale Image</SelectItem>
                           <SelectItem value="inpaint">Inpaint</SelectItem>
+                          <SelectItem value="outpaint">Outpaint</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     
                     {toolType === 'upscale' && (
-                      <div>
-                        <Label className="text-sm font-medium">Scale Factor</Label>
-                        <Select 
-                          value={String(upscaleFactor)} 
-                          onValueChange={(value) => setUpscaleFactor(Number(value))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="2">2x</SelectItem>
-                            <SelectItem value="4">4x</SelectItem>
-                            <SelectItem value="8">8x</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <>
+                        <div>
+                          <Label className="text-sm font-medium">Scale Factor</Label>
+                          <Select 
+                            value={String(upscaleFactor)} 
+                            onValueChange={(value) => setUpscaleFactor(Number(value))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="2">2x</SelectItem>
+                              <SelectItem value="4">4x</SelectItem>
+                              <SelectItem value="8">8x</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-sm font-medium">Width</Label>
+                            <input
+                              type="number"
+                              value={upscaleWidth}
+                              onChange={(e) => setUpscaleWidth(Number(e.target.value))}
+                              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                              min="512"
+                              max="4096"
+                              step="32"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium">Height</Label>
+                            <input
+                              type="number"
+                              value={upscaleHeight}
+                              onChange={(e) => setUpscaleHeight(Number(e.target.value))}
+                              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                              min="512"
+                              max="4096"
+                              step="32"
+                            />
+                          </div>
+                        </div>
+                      </>
                     )}
                     
                     {toolType === 'inpaint' && (
@@ -634,6 +705,50 @@ const Index = () => {
                             value={inpaintPrompt}
                             onChange={(e) => setInpaintPrompt(e.target.value)}
                             placeholder="Describe what to fill..."
+                            className="h-16"
+                          />
+                        </div>
+                      </>
+                    )}
+                    
+                    {toolType === 'outpaint' && (
+                      <>
+                        <div>
+                          <Label className="text-sm font-medium">Direction</Label>
+                          <Select value={outpaintDirection} onValueChange={(value: any) => setOutpaintDirection(value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="up">Up</SelectItem>
+                              <SelectItem value="down">Down</SelectItem>
+                              <SelectItem value="left">Left</SelectItem>
+                              <SelectItem value="right">Right</SelectItem>
+                              <SelectItem value="all">All Directions</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium">
+                            Amount: {outpaintAmount}px
+                          </Label>
+                          <Slider
+                            value={[outpaintAmount]}
+                            onValueChange={(value) => setOutpaintAmount(value[0])}
+                            max={200}
+                            min={10}
+                            step={10}
+                            className="mt-2"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium">Outpaint Prompt</Label>
+                          <Textarea
+                            value={outpaintPrompt}
+                            onChange={(e) => setOutpaintPrompt(e.target.value)}
+                            placeholder="Describe what to extend..."
                             className="h-16"
                           />
                         </div>

@@ -75,12 +75,14 @@ export interface BackgroundRemovalParams {
 export interface UpscaleParams {
   inputImage: string;
   upscaleFactor: number;
+  width?: number;
+  height?: number;
   outputFormat?: string;
 }
 
 // Inpainting parameters
 export interface InpaintParams {
-  inputImage: string;
+  seedImage: string; // Use seedImage instead of inputImage
   maskImage: string;
   positivePrompt: string;
   model?: string;
@@ -474,7 +476,9 @@ export class RunwareService {
         inputImage: params.inputImage,
         upscaleFactor: params.upscaleFactor,
         outputFormat: params.outputFormat || "JPEG",
-        outputType: ["URL"]
+        outputType: ["URL"],
+        ...(params.width && { width: params.width }),
+        ...(params.height && { height: params.height })
       }];
 
       console.log("Sending upscale message:", message);
@@ -519,7 +523,7 @@ export class RunwareService {
         includeCost: true,
         outputType: ["URL"],
         positivePrompt: params.positivePrompt,
-        inputImage: params.inputImage,
+        seedImage: params.seedImage, // Use seedImage instead of inputImage
         maskImage: params.maskImage
       }];
 
