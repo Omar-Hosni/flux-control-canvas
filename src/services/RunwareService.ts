@@ -30,6 +30,7 @@ export interface GenerateImageParams {
     controlMode: string;
   }>;
   seedImage?: string; // For image-to-image generation
+  strength?: number; // Strength for image-to-image
 }
 
 // Image-to-Image generation parameters
@@ -314,7 +315,8 @@ export class RunwareService {
         outputType: ["URL"],
         positivePrompt: params.positivePrompt,
         ...(params.controlNet && { controlNet: params.controlNet }),
-        ...(params.seedImage && { seedImage: params.seedImage })
+        ...(params.seedImage && { seedImage: params.seedImage }),
+        ...(params.strength && { strength: params.strength })
       }];
 
       console.log("Sending image generation message:", message);

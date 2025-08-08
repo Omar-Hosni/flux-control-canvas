@@ -156,11 +156,11 @@ const Index = () => {
       // Upload the seed image first
       const uploadedImageUrl = await runwareService.uploadImage(img2imgImage);
       
-      // Use the dedicated image-to-image method with strength parameter
-      const result = await runwareService.generateImageToImage({
+      // Use seedImage parameter for image-to-image generation
+      const result = await runwareService.generateImage({
         positivePrompt: img2imgPrompt,
-        inputImage: uploadedImageUrl,
-        strength: img2imgStrength, // Use strength parameter as per docs
+        seedImage: uploadedImageUrl, // Uploaded image as seed
+        strength: img2imgStrength, // Strength parameter
         model: 'runware:101@1',
         numberResults: 1,
         outputFormat: 'WEBP',
