@@ -18,14 +18,18 @@ import {
   PaintBucket,
   Crop,
   Play,
-  Cpu
+  Cpu,
+  ArrowLeft,
+  Home
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface WorkflowToolbarProps {
   onAddNode: (type: string, data: any) => void;
 }
 
 export const WorkflowToolbar = ({ onAddNode }: WorkflowToolbarProps) => {
+  const navigate = useNavigate();
   const nodeCategories = [
     {
       title: 'Input',
@@ -82,10 +86,21 @@ export const WorkflowToolbar = ({ onAddNode }: WorkflowToolbarProps) => {
             <p className="text-sm text-muted-foreground">Drag and drop nodes to build your AI workflow</p>
           </div>
         </div>
-        <Badge variant="secondary" className="gap-2">
-          <Play className="w-3 h-3" />
-          Ready
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="surface"
+            size="sm"
+            onClick={() => navigate('/')}
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Studio
+          </Button>
+          <Badge variant="secondary" className="gap-2">
+            <Play className="w-3 h-3" />
+            Ready
+          </Badge>
+        </div>
       </div>
 
       <div className="flex gap-6 overflow-x-auto pb-2">
@@ -100,13 +115,15 @@ export const WorkflowToolbar = ({ onAddNode }: WorkflowToolbarProps) => {
                 return (
                   <Button
                     key={node.type + node.label}
-                    variant="outline"
+                    variant="surface"
                     size="sm"
-                    className="flex flex-col h-16 w-16 p-2 bg-background hover:bg-gradient-glow hover:border-primary/50"
+                    className="flex flex-col h-20 w-20 p-3 group hover:scale-105 hover:shadow-glow transition-all duration-300 bg-ai-surface border-border hover:border-primary/50 hover:bg-ai-surface-elevated"
                     onClick={() => onAddNode(node.type, node.data)}
                   >
-                    <IconComponent className="w-4 h-4 mb-1" />
-                    <span className="text-xs">{node.label}</span>
+                    <div className="p-1.5 rounded-md bg-gradient-primary mb-2 group-hover:shadow-ai transition-shadow">
+                      <IconComponent className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-xs font-medium text-center leading-tight">{node.label}</span>
                   </Button>
                 );
               })}
