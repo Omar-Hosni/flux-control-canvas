@@ -10,7 +10,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Brain, Zap, Settings } from 'lucide-react';
+import { Brain, Zap, Settings, Workflow } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { RunwareService, type PreprocessedImage, type GeneratedImage, type GenerateImageParams } from '@/services/RunwareService';
 
 const Index = () => {
@@ -124,10 +125,18 @@ const Index = () => {
                 </p>
               </div>
             </div>
-            <Badge variant="secondary" className="gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              Connected
-            </Badge>
+            <div className="flex items-center gap-4">
+              <Link to="/workflow">
+                <Button variant="outline" className="gap-2">
+                  <Workflow className="w-4 h-4" />
+                  Workflow Editor
+                </Button>
+              </Link>
+              <Badge variant="secondary" className="gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                Connected
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
