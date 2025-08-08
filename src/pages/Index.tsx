@@ -10,16 +10,52 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Brain, Zap, Settings, Workflow } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Brain, Zap, Settings, Workflow, Image as ImageIcon, Wand2, Palette, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { RunwareService, type PreprocessedImage, type GeneratedImage, type GenerateImageParams } from '@/services/RunwareService';
+import { 
+  RunwareService, 
+  type PreprocessedImage, 
+  type GeneratedImage, 
+  type GenerateImageParams,
+  type ImageToImageParams,
+  type FluxKontextParams
+} from '@/services/RunwareService';
 
 const Index = () => {
   const [apiKey, setApiKey] = useState<string | null>("J9GGKxXu8hDhbW1mXOPaNHBH8S48QnhT");
   const [runwareService, setRunwareService] = useState<RunwareService | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("controlnet");
+  
+  // ControlNet states
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedPreprocessor, setSelectedPreprocessor] = useState<string | null>(null);
   const [preprocessedImage, setPreprocessedImage] = useState<PreprocessedImage | null>(null);
+  
+  // Image-to-Image states
+  const [img2imgImage, setImg2imgImage] = useState<File | null>(null);
+  const [img2imgStrength, setImg2imgStrength] = useState<number>(0.8);
+  const [img2imgPrompt, setImg2imgPrompt] = useState<string>("");
+  
+  // Tools states
+  const [toolImage, setToolImage] = useState<File | null>(null);
+  const [toolType, setToolType] = useState<string>("removebg");
+  const [upscaleFactor, setUpscaleFactor] = useState<number>(2);
+  const [maskImage, setMaskImage] = useState<File | null>(null);
+  const [inpaintPrompt, setInpaintPrompt] = useState<string>("");
+  
+  // Flux Kontext states
+  const [fluxImage, setFluxImage] = useState<File | null>(null);
+  const [fluxType, setFluxType] = useState<string>("reference");
+  const [fluxPrompt, setFluxPrompt] = useState<string>("");
+  const [referenceType, setReferenceType] = useState<string>("style");
+  const [creativity, setCreativity] = useState<number>(0.8);
+  
+  // Common states
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -102,6 +138,129 @@ const Index = () => {
     }
   };
 
+  // Image-to-Image generation
+  const handleImg2ImgGenerate = async () => {
+    if (!img2imgImage || !img2imgPrompt || !runwareService) {
+      toast.error('Please select an image and enter a prompt');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const imageUrl = URL.createObjectURL(img2imgImage);
+      const params: ImageToImageParams = {
+        positivePrompt: img2imgPrompt,
+        inputImage: imageUrl,
+        strength: img2imgStrength,
+        model: 'runware:100@1',
+        numberResults: 1,
+        outputFormat: 'WEBP'
+      };
+
+      const result = await runwareService.generateImageToImage(params);
+      setGeneratedImages(prev => [result, ...prev]);
+      toast.success('Image generated successfully!');
+    } catch (error) {
+      console.error('Generation failed:', error);
+      toast.error('Failed to generate image. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Tools processing
+  const handleToolProcess = async () => {
+    if (!toolImage || !runwareService) {
+      toast.error('Please select an image');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const imageUrl = URL.createObjectURL(toolImage);
+      let result;
+
+      switch (toolType) {
+        case 'removebg':
+          result = await runwareService.removeBackground({ inputImage: imageUrl });
+          break;
+        case 'upscale':
+          result = await runwareService.upscaleImage({ 
+            inputImage: imageUrl, 
+            upscaleFactor 
+          });
+          break;
+        case 'inpaint':
+          if (!maskImage || !inpaintPrompt) {
+            toast.error('Please provide mask image and prompt for inpainting');
+            return;
+          }
+          const maskUrl = URL.createObjectURL(maskImage);
+          result = await runwareService.inpaintImage({
+            inputImage: imageUrl,
+            maskImage: maskUrl,
+            positivePrompt: inpaintPrompt
+          });
+          break;
+        default:
+          throw new Error('Unsupported tool type');
+      }
+
+      setGeneratedImages(prev => [result, ...prev]);
+      toast.success('Image processed successfully!');
+    } catch (error) {
+      console.error('Processing failed:', error);
+      toast.error('Failed to process image. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Flux Kontext generation
+  const handleFluxGenerate = async () => {
+    if (!fluxImage || !fluxPrompt || !runwareService) {
+      toast.error('Please select an image and enter a prompt');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const imageUrl = URL.createObjectURL(fluxImage);
+      let result;
+
+      switch (fluxType) {
+        case 'reference':
+          result = await runwareService.generateReference(
+            imageUrl,
+            fluxPrompt,
+            referenceType
+          );
+          break;
+        case 'reimagine':
+          result = await runwareService.generateImageToImage({
+            positivePrompt: fluxPrompt,
+            inputImage: imageUrl,
+            strength: creativity
+          });
+          break;
+        default:
+          result = await runwareService.generateFluxKontext({
+            inputImages: [imageUrl],
+            positivePrompt: fluxPrompt,
+            model: 'runware:100@1'
+          });
+      }
+
+      setGeneratedImages(prev => [result, ...prev]);
+      toast.success('Image generated successfully!');
+    } catch (error) {
+      console.error('Generation failed:', error);
+      toast.error('Failed to generate image. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   if (!apiKey) {
     return <ApiKeySetup onApiKeySet={handleApiKeySet} />;
   }
@@ -121,7 +280,7 @@ const Index = () => {
                   Runware AI Studio
                 </h1>
                 <p className="text-muted-foreground">
-                  ControlNet-powered image generation with Flux
+                  Complete AI image generation and editing suite
                 </p>
               </div>
             </div>
@@ -143,68 +302,507 @@ const Index = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Upload & Preprocessing */}
-          <div className="lg:col-span-1 space-y-6">
-            <Card className="p-6 bg-ai-surface border-border shadow-card">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-gradient-primary">
-                  <Zap className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Input & Processing
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Upload and preprocess your control image
-                  </p>
-                </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="controlnet" className="gap-2">
+              <Zap className="w-4 h-4" />
+              ControlNet
+            </TabsTrigger>
+            <TabsTrigger value="img2img" className="gap-2">
+              <ImageIcon className="w-4 h-4" />
+              Image-to-Image
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="gap-2">
+              <Wand2 className="w-4 h-4" />
+              Tools
+            </TabsTrigger>
+            <TabsTrigger value="flux" className="gap-2">
+              <Palette className="w-4 h-4" />
+              Flux Kontext
+            </TabsTrigger>
+          </TabsList>
+          {/* ControlNet Tab */}
+          <TabsContent value="controlnet">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left Column - Upload & Preprocessing */}
+              <div className="lg:col-span-1 space-y-6">
+                <Card className="p-6 bg-ai-surface border-border shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-gradient-primary">
+                      <Zap className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Input & Processing
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Upload and preprocess your control image
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    <ImageUpload
+                      onImageSelect={handleImageSelect}
+                      selectedImage={selectedImage}
+                    />
+                    
+                    <Separator className="bg-border" />
+                    
+                    <ControlNetSelector
+                      selectedPreprocessor={selectedPreprocessor}
+                      onPreprocessorSelect={setSelectedPreprocessor}
+                      onPreprocess={handlePreprocess}
+                      isProcessing={isProcessing}
+                      disabled={!selectedImage}
+                    />
+                  </div>
+                </Card>
+
+                {preprocessedImage && (
+                  <PreprocessPreview
+                    preprocessedImage={preprocessedImage}
+                    originalImage={selectedImage}
+                  />
+                )}
               </div>
-              
-              <div className="space-y-6">
-                <ImageUpload
-                  onImageSelect={handleImageSelect}
-                  selectedImage={selectedImage}
-                />
-                
-                <Separator className="bg-border" />
-                
-                <ControlNetSelector
-                  selectedPreprocessor={selectedPreprocessor}
-                  onPreprocessorSelect={setSelectedPreprocessor}
-                  onPreprocess={handlePreprocess}
-                  isProcessing={isProcessing}
-                  disabled={!selectedImage}
+
+              {/* Middle Column - Generation Settings */}
+              <div className="lg:col-span-1">
+                <GenerationSettings
+                  onGenerate={handleGenerate}
+                  isGenerating={isGenerating}
+                  hasPreprocessedImage={!!preprocessedImage}
+                  preprocessedImageUrl={preprocessedImage?.imageURL}
                 />
               </div>
-            </Card>
 
-            {preprocessedImage && (
-              <PreprocessPreview
-                preprocessedImage={preprocessedImage}
-                originalImage={selectedImage}
-              />
-            )}
-          </div>
+              {/* Right Column - Results */}
+              <div className="lg:col-span-1">
+                <ResultsGallery
+                  results={generatedImages}
+                  isGenerating={isGenerating}
+                />
+              </div>
+            </div>
+          </TabsContent>
 
-          {/* Middle Column - Generation Settings */}
-          <div className="lg:col-span-1">
-            <GenerationSettings
-              onGenerate={handleGenerate}
-              isGenerating={isGenerating}
-              hasPreprocessedImage={!!preprocessedImage}
-              preprocessedImageUrl={preprocessedImage?.imageURL}
-            />
-          </div>
+          {/* Image-to-Image Tab */}
+          <TabsContent value="img2img">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
+                <Card className="p-6 bg-ai-surface border-border shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-gradient-primary">
+                      <ImageIcon className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Image Input
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Upload base image to transform
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Upload Image</Label>
+                      <Button
+                        variant="outline"
+                        className="w-full h-32 border-dashed"
+                        onClick={() => document.getElementById('img2img-input')?.click()}
+                      >
+                        <Upload className="w-6 h-6 mr-2" />
+                        {img2imgImage ? img2imgImage.name : 'Choose Image'}
+                      </Button>
+                      <input
+                        id="img2img-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setImg2imgImage(e.target.files?.[0] || null)}
+                        className="hidden"
+                      />
+                    </div>
+                    
+                    {img2imgImage && (
+                      <div className="border rounded-lg overflow-hidden">
+                        <img
+                          src={URL.createObjectURL(img2imgImage)}
+                          alt="Input"
+                          className="w-full h-48 object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
 
-          {/* Right Column - Results */}
-          <div className="lg:col-span-1">
-            <ResultsGallery
-              results={generatedImages}
-              isGenerating={isGenerating}
-            />
-          </div>
-        </div>
+              <div className="lg:col-span-1">
+                <Card className="p-6 bg-ai-surface border-border shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-gradient-primary">
+                      <Settings className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Settings
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Configure transformation parameters
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Prompt</Label>
+                      <Textarea
+                        value={img2imgPrompt}
+                        onChange={(e) => setImg2imgPrompt(e.target.value)}
+                        placeholder="Describe the transformation..."
+                        className="h-24"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium">
+                        Strength: {(img2imgStrength * 100).toFixed(0)}%
+                      </Label>
+                      <Slider
+                        value={[img2imgStrength]}
+                        onValueChange={(value) => setImg2imgStrength(value[0])}
+                        max={1}
+                        min={0}
+                        step={0.1}
+                        className="mt-2"
+                      />
+                    </div>
+                    
+                    <Button
+                      onClick={handleImg2ImgGenerate}
+                      disabled={!img2imgImage || !img2imgPrompt || isGenerating}
+                      className="w-full"
+                    >
+                      {isGenerating ? 'Generating...' : 'Generate'}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-1">
+                <ResultsGallery
+                  results={generatedImages}
+                  isGenerating={isGenerating}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Tools Tab */}
+          <TabsContent value="tools">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
+                <Card className="p-6 bg-ai-surface border-border shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-gradient-primary">
+                      <Wand2 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Image Tools
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Process images with AI tools
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Upload Image</Label>
+                      <Button
+                        variant="outline"
+                        className="w-full h-32 border-dashed"
+                        onClick={() => document.getElementById('tool-input')?.click()}
+                      >
+                        <Upload className="w-6 h-6 mr-2" />
+                        {toolImage ? toolImage.name : 'Choose Image'}
+                      </Button>
+                      <input
+                        id="tool-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setToolImage(e.target.files?.[0] || null)}
+                        className="hidden"
+                      />
+                    </div>
+                    
+                    {toolImage && (
+                      <div className="border rounded-lg overflow-hidden">
+                        <img
+                          src={URL.createObjectURL(toolImage)}
+                          alt="Input"
+                          className="w-full h-48 object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-1">
+                <Card className="p-6 bg-ai-surface border-border shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-gradient-primary">
+                      <Settings className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Tool Settings
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Configure processing options
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Tool Type</Label>
+                      <Select value={toolType} onValueChange={setToolType}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="removebg">Remove Background</SelectItem>
+                          <SelectItem value="upscale">Upscale Image</SelectItem>
+                          <SelectItem value="inpaint">Inpaint</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {toolType === 'upscale' && (
+                      <div>
+                        <Label className="text-sm font-medium">Scale Factor</Label>
+                        <Select 
+                          value={String(upscaleFactor)} 
+                          onValueChange={(value) => setUpscaleFactor(Number(value))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="2">2x</SelectItem>
+                            <SelectItem value="4">4x</SelectItem>
+                            <SelectItem value="8">8x</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    {toolType === 'inpaint' && (
+                      <>
+                        <div>
+                          <Label className="text-sm font-medium">Mask Image</Label>
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => document.getElementById('mask-input')?.click()}
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {maskImage ? 'Change Mask' : 'Upload Mask'}
+                          </Button>
+                          <input
+                            id="mask-input"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setMaskImage(e.target.files?.[0] || null)}
+                            className="hidden"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium">Inpaint Prompt</Label>
+                          <Textarea
+                            value={inpaintPrompt}
+                            onChange={(e) => setInpaintPrompt(e.target.value)}
+                            placeholder="Describe what to fill..."
+                            className="h-16"
+                          />
+                        </div>
+                      </>
+                    )}
+                    
+                    <Button
+                      onClick={handleToolProcess}
+                      disabled={!toolImage || isProcessing}
+                      className="w-full"
+                    >
+                      {isProcessing ? 'Processing...' : 'Process Image'}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-1">
+                <ResultsGallery
+                  results={generatedImages}
+                  isGenerating={isProcessing}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Flux Kontext Tab */}
+          <TabsContent value="flux">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
+                <Card className="p-6 bg-ai-surface border-border shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-gradient-primary">
+                      <Palette className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Flux Kontext
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Advanced image transformations
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Upload Image</Label>
+                      <Button
+                        variant="outline"
+                        className="w-full h-32 border-dashed"
+                        onClick={() => document.getElementById('flux-input')?.click()}
+                      >
+                        <Upload className="w-6 h-6 mr-2" />
+                        {fluxImage ? fluxImage.name : 'Choose Image'}
+                      </Button>
+                      <input
+                        id="flux-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setFluxImage(e.target.files?.[0] || null)}
+                        className="hidden"
+                      />
+                    </div>
+                    
+                    {fluxImage && (
+                      <div className="border rounded-lg overflow-hidden">
+                        <img
+                          src={URL.createObjectURL(fluxImage)}
+                          alt="Input"
+                          className="w-full h-48 object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-1">
+                <Card className="p-6 bg-ai-surface border-border shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-gradient-primary">
+                      <Settings className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Flux Settings
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Configure transformation type
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Transformation Type</Label>
+                      <Select value={fluxType} onValueChange={setFluxType}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="reference">Reference</SelectItem>
+                          <SelectItem value="reimagine">Re-imagine</SelectItem>
+                          <SelectItem value="rescene">Re-scene</SelectItem>
+                          <SelectItem value="reangle">Re-angle</SelectItem>
+                          <SelectItem value="remix">Re-mix</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {fluxType === 'reference' && (
+                      <div>
+                        <Label className="text-sm font-medium">Reference Type</Label>
+                        <Select value={referenceType} onValueChange={setReferenceType}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="style">Style</SelectItem>
+                            <SelectItem value="product">Product</SelectItem>
+                            <SelectItem value="character">Character</SelectItem>
+                            <SelectItem value="composition">Composition</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    {fluxType === 'reimagine' && (
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Creativity: {(creativity * 100).toFixed(0)}%
+                        </Label>
+                        <Slider
+                          value={[creativity]}
+                          onValueChange={(value) => setCreativity(value[0])}
+                          max={1}
+                          min={0}
+                          step={0.1}
+                          className="mt-2"
+                        />
+                      </div>
+                    )}
+                    
+                    <div>
+                      <Label className="text-sm font-medium">Prompt</Label>
+                      <Textarea
+                        value={fluxPrompt}
+                        onChange={(e) => setFluxPrompt(e.target.value)}
+                        placeholder="Describe the transformation..."
+                        className="h-24"
+                      />
+                    </div>
+                    
+                    <Button
+                      onClick={handleFluxGenerate}
+                      disabled={!fluxImage || !fluxPrompt || isGenerating}
+                      className="w-full"
+                    >
+                      {isGenerating ? 'Generating...' : 'Generate'}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-1">
+                <ResultsGallery
+                  results={generatedImages}
+                  isGenerating={isGenerating}
+                />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
