@@ -157,7 +157,7 @@ export class WorkflowExecutor {
           if (inputImages.length === 0) return null;
           const remixResult = await this.runwareService.generateReMix(
             inputImages,
-            (node.data.weights as number[]) || undefined
+            false // useFluxKontextPro parameter
           );
           return remixResult.imageURL;
 
@@ -186,7 +186,7 @@ export class WorkflowExecutor {
         case 'upscale':
           const upscaleResult = await this.runwareService.upscaleImage({
             inputImage: inputImageUrl,
-            upscaleFactor: (node.data.upscaleFactor as number) || 2
+            upscaleFactor: ((node.data.upscaleFactor as number) || 2) as 2 | 3 | 4
           });
           return upscaleResult.imageURL;
 

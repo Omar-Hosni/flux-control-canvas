@@ -202,10 +202,7 @@ const Index = () => {
         case 'upscale':
           result = await runwareService.upscaleImage({ 
             inputImage: uploadedImageUrl, 
-            upscaleFactor,
-            width: upscaleWidth,
-            height: upscaleHeight,
-            originalFile: toolImage // Pass original file for resizing if needed
+            upscaleFactor: upscaleFactor as 2 | 3 | 4
           });
           break;
         case 'inpaint':

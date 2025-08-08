@@ -70,9 +70,7 @@ export interface BackgroundRemovalParams {
 // Upscaling parameters
 export interface UpscaleParams {
   inputImage: string;
-  upscaleFactor: number;
-  width?: number;
-  height?: number;
+  upscaleFactor: 2 | 3 | 4;
   outputFormat?: string;
 }
 
@@ -458,6 +456,61 @@ export class RunwareService {
     });
   }
 
+  // Flux Kontext Pro generation with size ratios
+  async generateFluxKontextPro(params: FluxKontextParams & { sizeRatio?: string }): Promise<GeneratedImage> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    // Map size ratios to dimensions
+    const sizeMap: Record<string, { width: number; height: number }> = {
+      "1:1": { width: 1024, height: 1024 },
+      "21:9": { width: 1568, height: 672 },
+      "16:9": { width: 1344, height: 768 },
+      "4:3": { width: 1152, height: 896 },
+      "3:2": { width: 1216, height: 832 }
+    };
+
+    const dimensions = params.sizeRatio ? sizeMap[params.sizeRatio] : { width: 1024, height: 1024 };
+
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageInference",
+        taskUUID,
+        model: "bfl:3@1", // Flux Kontext Pro model
+        numberResults: params.numberResults || 1,
+        outputFormat: params.outputFormat || "JPEG",
+        width: params.width || dimensions.width,
+        height: params.height || dimensions.height,
+        includeCost: true,
+        outputType: ["URL"],
+        positivePrompt: params.positivePrompt,
+        referenceImages: params.referenceImages,
+        outputQuality: 85,
+        advancedFeatures: {
+          guidanceEndStepPercentage: 75
+        }
+      }];
+
+      console.log("Sending Flux Kontext Pro generation message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve(data);
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
   // Background removal
   async removeBackground(params: BackgroundRemovalParams): Promise<ProcessedImageResult> {
     await this.connectionPromise;
@@ -496,23 +549,13 @@ export class RunwareService {
     });
   }
 
-  // Image upscaling with automatic resizing
-  async upscaleImage(params: UpscaleParams & { originalFile?: File }): Promise<ProcessedImageResult> {
+  // Image upscaling 
+  async upscaleImage(params: UpscaleParams): Promise<ProcessedImageResult> {
     await this.connectionPromise;
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
       this.connectionPromise = this.connect();
       await this.connectionPromise;
-    }
-
-    let inputImage = params.inputImage;
-    
-    // If original file is provided, resize it if needed before upscaling
-    if (params.originalFile) {
-      const resizedFile = await this.resizeImageForUpscale(params.originalFile);
-      if (resizedFile !== params.originalFile) {
-        inputImage = await this.uploadImage(resizedFile);
-      }
     }
 
     const taskUUID = crypto.randomUUID();
@@ -521,12 +564,10 @@ export class RunwareService {
       const message = [{
         taskType: "imageUpscale",
         taskUUID,
-        inputImage,
+        inputImage: params.inputImage,
         upscaleFactor: params.upscaleFactor,
-        outputFormat: params.outputFormat || "JPEG",
-        outputType: ["URL"],
-        ...(params.width && { width: params.width }),
-        ...(params.height && { height: params.height })
+        outputFormat: params.outputFormat || "JPG",
+        outputType: ["URL"]
       }];
 
       console.log("Sending upscale message:", message);
@@ -633,39 +674,82 @@ export class RunwareService {
   // Specialized Flux Kontext methods for different node types
   
   // Reference node: apply changes based on reference type
-  async generateReference(inputImage: string, prompt: string, referenceType: string): Promise<GeneratedImage> {
+  async generateReference(inputImage: string, prompt: string, referenceType: string, useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
     const enhancedPrompt = `Apply ${referenceType} reference: ${prompt}`;
-    return this.generateFluxKontext({
-      positivePrompt: enhancedPrompt,
-      referenceImages: [inputImage]
-    });
+    if (useFluxKontextPro) {
+      return this.generateFluxKontextPro({
+        positivePrompt: enhancedPrompt,
+        referenceImages: [inputImage]
+      });
+    } else {
+      return this.generateFluxKontext({
+        positivePrompt: enhancedPrompt,
+        referenceImages: [inputImage]
+      });
+    }
   }
 
-  // Re-scene node: blend object with scene
-  async generateReScene(objectImage: string, sceneImage: string): Promise<GeneratedImage> {
+  // Re-scene node: blend object with scene (takes two images)
+  async generateReScene(objectImage: string, sceneImage: string, useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
     const prompt = "Blend this object into this scene while maintaining all details and realistic lighting";
-    return this.generateFluxKontext({
-      positivePrompt: prompt,
-      referenceImages: [objectImage, sceneImage]
-    });
+    if (useFluxKontextPro) {
+      return this.generateFluxKontextPro({
+        positivePrompt: prompt,
+        referenceImages: [objectImage, sceneImage]
+      });
+    } else {
+      return this.generateFluxKontext({
+        positivePrompt: prompt,
+        referenceImages: [objectImage, sceneImage]
+      });
+    }
   }
 
   // Re-angle node: change camera angle
-  async generateReAngle(inputImage: string, degrees: number, direction: string): Promise<GeneratedImage> {
+  async generateReAngle(inputImage: string, degrees: number, direction: string, useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
     const prompt = `Change camera angle of this image by ${degrees} degrees to ${direction} direction`;
-    return this.generateFluxKontext({
-      positivePrompt: prompt,
-      referenceImages: [inputImage]
-    });
+    if (useFluxKontextPro) {
+      return this.generateFluxKontextPro({
+        positivePrompt: prompt,
+        referenceImages: [inputImage]
+      });
+    } else {
+      return this.generateFluxKontext({
+        positivePrompt: prompt,
+        referenceImages: [inputImage]
+      });
+    }
   }
 
   // Re-mix node: blend multiple images using ipadapters
-  async generateReMix(inputImages: string[], weights?: number[]): Promise<GeneratedImage> {
+  async generateReMix(inputImages: string[], useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
     const prompt = "Creatively blend and remix these images into a cohesive composition";
-    return this.generateFluxKontext({
-      positivePrompt: prompt,
-      referenceImages: inputImages
-    });
+    if (useFluxKontextPro) {
+      return this.generateFluxKontextPro({
+        positivePrompt: prompt,
+        referenceImages: inputImages
+      });
+    } else {
+      return this.generateFluxKontext({
+        positivePrompt: prompt,
+        referenceImages: inputImages
+      });
+    }
+  }
+
+  // Re-imagine: transform uploaded image based on prompt
+  async generateReImagine(inputImage: string, prompt: string, useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
+    if (useFluxKontextPro) {
+      return this.generateFluxKontextPro({
+        positivePrompt: prompt,
+        referenceImages: [inputImage]
+      });
+    } else {
+      return this.generateFluxKontext({
+        positivePrompt: prompt,
+        referenceImages: [inputImage]
+      });
+    }
   }
 
   disconnect() {
