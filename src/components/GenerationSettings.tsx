@@ -26,7 +26,7 @@ interface LoRA {
 }
 
 const AVAILABLE_LORAS = [
-  { name: 'None', model: '', weight: 1 },
+  { name: 'None', model: 'none', weight: 1 },
   { name: 'Amateur Photography', model: 'civitai:652699@993999', weight: 1 },
   { name: 'Detail Tweaker', model: 'civitai:58390@62833', weight: 1 },
   { name: 'Realistic', model: 'civitai:796382@1026423', weight: 1 },
@@ -84,7 +84,7 @@ export const GenerationSettings = ({
 
     // Build LoRA array for API
     const loraArray = selectedLoras
-      .filter(lora => lora.model !== '') // Exclude "None" selections
+      .filter(lora => lora.model !== 'none') // Exclude "None" selections
       .map(lora => ({
         model: lora.model,
         weight: lora.weight
