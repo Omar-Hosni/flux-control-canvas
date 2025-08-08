@@ -46,8 +46,6 @@ const Index = () => {
   const [toolImage, setToolImage] = useState<File | null>(null);
   const [toolType, setToolType] = useState<string>("removebg");
   const [upscaleFactor, setUpscaleFactor] = useState<number>(2);
-  const [upscaleWidth, setUpscaleWidth] = useState<number>(1024);
-  const [upscaleHeight, setUpscaleHeight] = useState<number>(1024);
   const [maskImage, setMaskImage] = useState<File | null>(null);
   const [inpaintPrompt, setInpaintPrompt] = useState<string>("");
   const [outpaintDirection, setOutpaintDirection] = useState<'up' | 'down' | 'left' | 'right' | 'all'>('all');
@@ -749,32 +747,6 @@ const Index = () => {
                           </Select>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-sm font-medium">Width</Label>
-                            <input
-                              type="number"
-                              value={upscaleWidth}
-                              onChange={(e) => setUpscaleWidth(Number(e.target.value))}
-                              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                              min="512"
-                              max="4096"
-                              step="32"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium">Height</Label>
-                            <input
-                              type="number"
-                              value={upscaleHeight}
-                              onChange={(e) => setUpscaleHeight(Number(e.target.value))}
-                              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                              min="512"
-                              max="4096"
-                              step="32"
-                            />
-                          </div>
-                        </div>
                       </>
                     )}
                     
