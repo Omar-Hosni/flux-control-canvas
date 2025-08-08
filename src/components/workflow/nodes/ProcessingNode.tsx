@@ -19,6 +19,8 @@ interface ProcessingNodeProps {
     degrees?: number;
     direction?: string;
     weights?: number[];
+    model?: 'flux-kontext' | 'flux-kontext-pro';
+    sizeRatio?: '1:1' | '21:9' | '16:9' | '4:3' | '3:2';
   };
 }
 
@@ -48,49 +50,109 @@ export const ProcessingNode = memo(({ id, data }: ProcessingNodeProps) => {
   const { updateNodeData } = useWorkflowStore();
 
   const renderSettings = () => {
-    switch (data.processingType) {
-      case 'reimagine':
-        return (
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Creativity</Label>
-            <Slider
-              value={[data.creativity || 0.8]}
-              onValueChange={(value) => updateNodeData(id, { creativity: value[0] })}
-              max={1}
-              min={0}
-              step={0.1}
-              className="w-full"
-            />
-            <span className="text-xs text-muted-foreground">
-              {((data.creativity || 0.8) * 100).toFixed(0)}%
-            </span>
-          </div>
-        );
+    const commonSettings = (
+      <div className="space-y-2">
+        {/* Model Selection */}
+        <div>
+          <Label className="text-xs text-muted-foreground">Model</Label>
+          <Select
+            value={data.model || 'flux-kontext'}
+            onValueChange={(value) => updateNodeData(id, { model: value })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="flux-kontext">Flux Kontext</SelectItem>
+              <SelectItem value="flux-kontext-pro">Flux Kontext Pro</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-      case 'reference':
-        return (
+        {/* Size Ratio for Flux Kontext Pro */}
+        {data.model === 'flux-kontext-pro' && (
           <div>
-            <Label className="text-xs text-muted-foreground">Reference Type</Label>
+            <Label className="text-xs text-muted-foreground">Size Ratio</Label>
             <Select
-              value={data.referenceType || 'style'}
-              onValueChange={(value) => updateNodeData(id, { referenceType: value })}
+              value={data.sizeRatio || '1:1'}
+              onValueChange={(value) => updateNodeData(id, { sizeRatio: value })}
             >
               <SelectTrigger className="h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="style">Style</SelectItem>
-                <SelectItem value="product">Product</SelectItem>
-                <SelectItem value="character">Character</SelectItem>
-                <SelectItem value="composition">Composition</SelectItem>
+                <SelectItem value="1:1">1:1 (1024x1024)</SelectItem>
+                <SelectItem value="21:9">21:9 (1568x672)</SelectItem>
+                <SelectItem value="16:9">16:9 (1344x768)</SelectItem>
+                <SelectItem value="4:3">4:3 (1152x896)</SelectItem>
+                <SelectItem value="3:2">3:2 (1216x832)</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+        )}
+      </div>
+    );
+
+    switch (data.processingType) {
+      case 'reimagine':
+        return (
+          <div className="space-y-3">
+            {commonSettings}
+            <div>
+              <Label className="text-xs text-muted-foreground">Creativity</Label>
+              <Slider
+                value={[data.creativity || 0.8]}
+                onValueChange={(value) => updateNodeData(id, { creativity: value[0] })}
+                max={1}
+                min={0}
+                step={0.1}
+                className="w-full"
+              />
+              <span className="text-xs text-muted-foreground">
+                {((data.creativity || 0.8) * 100).toFixed(0)}%
+              </span>
+            </div>
+          </div>
+        );
+
+      case 'reference':
+        return (
+          <div className="space-y-3">
+            {commonSettings}
+            <div>
+              <Label className="text-xs text-muted-foreground">Reference Type</Label>
+              <Select
+                value={data.referenceType || 'style'}
+                onValueChange={(value) => updateNodeData(id, { referenceType: value })}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="style">Style</SelectItem>
+                  <SelectItem value="product">Product</SelectItem>
+                  <SelectItem value="character">Character</SelectItem>
+                  <SelectItem value="composition">Composition</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        );
+
+      case 'rescene':
+        return (
+          <div className="space-y-3">
+            {commonSettings}
+            <div className="text-xs text-muted-foreground">
+              Connect two images: object + scene
+            </div>
           </div>
         );
 
       case 'reangle':
         return (
-          <div className="space-y-2">
+          <div className="space-y-3">
+            {commonSettings}
             <div>
               <Label className="text-xs text-muted-foreground">Degrees</Label>
               <Select
@@ -130,6 +192,16 @@ export const ProcessingNode = memo(({ id, data }: ProcessingNodeProps) => {
           </div>
         );
 
+      case 'remix':
+        return (
+          <div className="space-y-3">
+            {commonSettings}
+            <div className="text-xs text-muted-foreground">
+              Connect multiple images for IP adapter remix
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -146,7 +218,7 @@ export const ProcessingNode = memo(({ id, data }: ProcessingNodeProps) => {
 
       <div className="space-y-3">
         <Badge variant="secondary" className="text-xs">
-          {data.processingType === 'reimagine' ? 'Image-to-Image' : 'Flux Kontext'}
+          {data.model === 'flux-kontext-pro' ? 'Flux Kontext Pro' : data.model === 'flux-kontext' ? 'Flux Kontext' : 'Processing'}
         </Badge>
         
         {renderSettings()}

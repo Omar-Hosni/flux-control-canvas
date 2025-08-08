@@ -674,12 +674,13 @@ export class RunwareService {
   // Specialized Flux Kontext methods for different node types
   
   // Reference node: apply changes based on reference type
-  async generateReference(inputImage: string, prompt: string, referenceType: string, useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
+  async generateReference(inputImage: string, prompt: string, referenceType: string, useFluxKontextPro: boolean = false, sizeRatio?: string): Promise<GeneratedImage> {
     const enhancedPrompt = `Apply ${referenceType} reference: ${prompt}`;
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
         positivePrompt: enhancedPrompt,
-        referenceImages: [inputImage]
+        referenceImages: [inputImage],
+        sizeRatio
       });
     } else {
       return this.generateFluxKontext({
@@ -690,12 +691,13 @@ export class RunwareService {
   }
 
   // Re-scene node: blend object with scene (takes two images)
-  async generateReScene(objectImage: string, sceneImage: string, useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
+  async generateReScene(objectImage: string, sceneImage: string, useFluxKontextPro: boolean = false, sizeRatio?: string): Promise<GeneratedImage> {
     const prompt = "Blend this object into this scene while maintaining all details and realistic lighting";
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
         positivePrompt: prompt,
-        referenceImages: [objectImage, sceneImage]
+        referenceImages: [objectImage, sceneImage],
+        sizeRatio
       });
     } else {
       return this.generateFluxKontext({
@@ -706,12 +708,13 @@ export class RunwareService {
   }
 
   // Re-angle node: change camera angle
-  async generateReAngle(inputImage: string, degrees: number, direction: string, useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
+  async generateReAngle(inputImage: string, degrees: number, direction: string, useFluxKontextPro: boolean = false, sizeRatio?: string): Promise<GeneratedImage> {
     const prompt = `Change camera angle of this image by ${degrees} degrees to ${direction} direction`;
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
         positivePrompt: prompt,
-        referenceImages: [inputImage]
+        referenceImages: [inputImage],
+        sizeRatio
       });
     } else {
       return this.generateFluxKontext({
@@ -722,12 +725,13 @@ export class RunwareService {
   }
 
   // Re-mix node: blend multiple images using ipadapters
-  async generateReMix(inputImages: string[], useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
+  async generateReMix(inputImages: string[], useFluxKontextPro: boolean = false, sizeRatio?: string): Promise<GeneratedImage> {
     const prompt = "Creatively blend and remix these images into a cohesive composition";
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
         positivePrompt: prompt,
-        referenceImages: inputImages
+        referenceImages: inputImages,
+        sizeRatio
       });
     } else {
       return this.generateFluxKontext({
@@ -738,11 +742,12 @@ export class RunwareService {
   }
 
   // Re-imagine: transform uploaded image based on prompt
-  async generateReImagine(inputImage: string, prompt: string, useFluxKontextPro: boolean = false): Promise<GeneratedImage> {
+  async generateReImagine(inputImage: string, prompt: string, useFluxKontextPro: boolean = false, sizeRatio?: string): Promise<GeneratedImage> {
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
         positivePrompt: prompt,
-        referenceImages: [inputImage]
+        referenceImages: [inputImage],
+        sizeRatio
       });
     } else {
       return this.generateFluxKontext({

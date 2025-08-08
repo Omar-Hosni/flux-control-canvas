@@ -110,20 +110,22 @@ export class WorkflowExecutor {
   }
 
   private async processGeneration(node: Node, inputs: Record<string, string>): Promise<string | null> {
-    const { processingType } = node.data;
+    const { processingType, model, sizeRatio } = node.data;
     const inputImages = Object.values(inputs).filter(input => input.startsWith('http'));
     const textInputs = Object.values(inputs).filter(input => !input.startsWith('http'));
     const prompt = textInputs[0] || '';
+    const useFluxKontextPro = model === 'flux-kontext-pro';
 
     try {
       switch (processingType) {
         case 'reimagine':
           if (inputImages.length === 0) return null;
-          const result = await this.runwareService.generateImageToImage({
-            positivePrompt: prompt || 'reimagine this image',
-            inputImage: inputImages[0],
-            strength: (node.data.creativity as number) || 0.8
-          });
+          const result = await this.runwareService.generateReImagine(
+            inputImages[0],
+            prompt || 'reimagine this image',
+            useFluxKontextPro,
+            sizeRatio as string
+          );
           return result.imageURL;
 
         case 'reference':
@@ -132,7 +134,9 @@ export class WorkflowExecutor {
           const refResult = await this.runwareService.generateReference(
             inputImages[0], 
             referencePrompt, 
-            (node.data.referenceType as string) || 'style'
+            (node.data.referenceType as string) || 'style',
+            useFluxKontextPro,
+            sizeRatio as string
           );
           return refResult.imageURL;
 
@@ -140,7 +144,9 @@ export class WorkflowExecutor {
           if (inputImages.length < 2) return null;
           const sceneResult = await this.runwareService.generateReScene(
             inputImages[0], // object
-            inputImages[1]  // scene
+            inputImages[1], // scene
+            useFluxKontextPro,
+            sizeRatio as string
           );
           return sceneResult.imageURL;
 
@@ -149,7 +155,9 @@ export class WorkflowExecutor {
           const angleResult = await this.runwareService.generateReAngle(
             inputImages[0],
             (node.data.degrees as number) || 15,
-            (node.data.direction as string) || 'right'
+            (node.data.direction as string) || 'right',
+            useFluxKontextPro,
+            sizeRatio as string
           );
           return angleResult.imageURL;
 
@@ -157,7 +165,8 @@ export class WorkflowExecutor {
           if (inputImages.length === 0) return null;
           const remixResult = await this.runwareService.generateReMix(
             inputImages,
-            false // useFluxKontextPro parameter
+            useFluxKontextPro,
+            sizeRatio as string
           );
           return remixResult.imageURL;
 
