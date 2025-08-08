@@ -56,6 +56,8 @@ const Index = () => {
   
   // Flux Kontext states
   const [fluxImage, setFluxImage] = useState<File | null>(null);
+  const [fluxImage2, setFluxImage2] = useState<File | null>(null); // For re-scene (scene image)
+  const [fluxImages, setFluxImages] = useState<File[]>([]); // For re-mix (multiple images)
   const [fluxType, setFluxType] = useState<string>("reference");
   const [fluxPrompt, setFluxPrompt] = useState<string>("");
   const [referenceType, setReferenceType] = useState<string>("style");
@@ -262,73 +264,87 @@ const Index = () => {
 
   // Flux Kontext generation
   const handleFluxGenerate = async () => {
-    if (!fluxImage || !fluxPrompt || !runwareService) {
-      toast.error('Please select an image and enter a prompt');
+    if (!fluxPrompt || !runwareService) {
+      toast.error('Please enter a prompt');
+      return;
+    }
+
+    // Validate required images based on transformation type
+    if (fluxType === 'rescene' && (!fluxImage || !fluxImage2)) {
+      toast.error('Re-scene requires both object and scene images');
+      return;
+    }
+    if (fluxType === 'remix' && fluxImages.length < 2) {
+      toast.error('Re-mix requires at least 2 images');
+      return;
+    }
+    if (!fluxImage && fluxType !== 'remix') {
+      toast.error('Please select an image');
       return;
     }
 
     setIsGenerating(true);
     try {
-      // Upload the image first to get proper URL
-      const uploadedImageUrl = await runwareService.uploadImageForURL(fluxImage);
       let result;
-
-      // Get transformation type - use 'reference' as default for Kontext Pro
       const transformationType = fluxType;
 
       switch (transformationType) {
         case 'reference':
-          result = await runwareService.generateReference(
-            uploadedImageUrl,
-            fluxPrompt,
-            referenceType,
-            fluxKontextPro,
-            fluxKontextPro ? sizeRatio : undefined
-          );
-          break;
         case 'reimagine':
-          result = await runwareService.generateReImagine(
-            uploadedImageUrl,
-            fluxPrompt,
-            fluxKontextPro,
-            fluxKontextPro ? sizeRatio : undefined
-          );
-          break;
-        case 'rescene':
-          // For rescene, we'll use the same image as both object and scene
-          // In a real app, you'd want two separate inputs
-          result = await runwareService.generateReScene(
-            uploadedImageUrl,
-            uploadedImageUrl,
-            fluxKontextPro,
-            fluxKontextPro ? sizeRatio : undefined
-          );
-          break;
         case 'reangle':
-          result = await runwareService.generateReAngle(
-            uploadedImageUrl,
-            15, // default degrees
-            'right', // default direction
+          // Single image operations
+          const uploadedImageUrl = await runwareService.uploadImageForURL(fluxImage!);
+          if (transformationType === 'reference') {
+            result = await runwareService.generateReference(
+              uploadedImageUrl,
+              fluxPrompt,
+              referenceType,
+              fluxKontextPro,
+              fluxKontextPro ? sizeRatio : undefined
+            );
+          } else if (transformationType === 'reimagine') {
+            result = await runwareService.generateReImagine(
+              uploadedImageUrl,
+              fluxPrompt,
+              fluxKontextPro,
+              fluxKontextPro ? sizeRatio : undefined
+            );
+          } else if (transformationType === 'reangle') {
+            result = await runwareService.generateReAngle(
+              uploadedImageUrl,
+              15, // default degrees
+              'right', // default direction
+              fluxKontextPro,
+              fluxKontextPro ? sizeRatio : undefined
+            );
+          }
+          break;
+
+        case 'rescene':
+          // Two image operation
+          const objectImageUrl = await runwareService.uploadImageForURL(fluxImage!);
+          const sceneImageUrl = await runwareService.uploadImageForURL(fluxImage2!);
+          result = await runwareService.generateReScene(
+            objectImageUrl,
+            sceneImageUrl,
             fluxKontextPro,
             fluxKontextPro ? sizeRatio : undefined
           );
           break;
+
         case 'remix':
+          // Multiple image operation
+          const uploadPromises = fluxImages.map(img => runwareService.uploadImageForURL(img));
+          const uploadedImageUrls = await Promise.all(uploadPromises);
           result = await runwareService.generateReMix(
-            [uploadedImageUrl],
+            uploadedImageUrls,
             fluxKontextPro,
             fluxKontextPro ? sizeRatio : undefined
           );
           break;
+
         default:
-          // Fallback to basic reference
-          result = await runwareService.generateReference(
-            uploadedImageUrl,
-            fluxPrompt,
-            'style',
-            fluxKontextPro,
-            fluxKontextPro ? sizeRatio : undefined
-          );
+          throw new Error('Unsupported transformation type');
       }
 
       setGeneratedImages(prev => [result, ...prev]);
@@ -832,7 +848,7 @@ const Index = () => {
           {/* Flux Kontext Tab */}
           <TabsContent value="flux">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1">
+               <div className="lg:col-span-1">
                 <Card className="p-6 bg-ai-surface border-border shadow-card">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 rounded-lg bg-gradient-primary">
@@ -847,18 +863,32 @@ const Index = () => {
                       </p>
                     </div>
                   </div>
-                  
+                   
                   <div className="space-y-4">
+                    {/* Primary Image Upload */}
                     <div>
-                      <Label className="text-sm font-medium">Upload Image</Label>
+                      <Label className="text-sm font-medium">
+                        {fluxType === 'rescene' ? 'Object Image' : fluxType === 'remix' ? 'Images (Multiple)' : 'Upload Image'}
+                      </Label>
                       <Button
                         variant="outline"
                         className="w-full h-32 border-dashed"
-                        onClick={() => document.getElementById('flux-input')?.click()}
+                        onClick={() => {
+                          if (fluxType === 'remix') {
+                            document.getElementById('flux-multiple-input')?.click();
+                          } else {
+                            document.getElementById('flux-input')?.click();
+                          }
+                        }}
                       >
                         <Upload className="w-6 h-6 mr-2" />
-                        {fluxImage ? fluxImage.name : 'Choose Image'}
+                        {fluxType === 'remix' 
+                          ? (fluxImages.length > 0 ? `${fluxImages.length} images selected` : 'Choose Multiple Images')
+                          : (fluxImage ? fluxImage.name : 'Choose Image')
+                        }
                       </Button>
+                      
+                      {/* Single image input */}
                       <input
                         id="flux-input"
                         type="file"
@@ -866,13 +896,81 @@ const Index = () => {
                         onChange={(e) => setFluxImage(e.target.files?.[0] || null)}
                         className="hidden"
                       />
+                      
+                      {/* Multiple images input */}
+                      <input
+                        id="flux-multiple-input"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setFluxImages(files);
+                        }}
+                        className="hidden"
+                      />
                     </div>
+
+                    {/* Second Image for Re-scene */}
+                    {fluxType === 'rescene' && (
+                      <div>
+                        <Label className="text-sm font-medium">Scene Image</Label>
+                        <Button
+                          variant="outline"
+                          className="w-full h-32 border-dashed"
+                          onClick={() => document.getElementById('flux-scene-input')?.click()}
+                        >
+                          <Upload className="w-6 h-6 mr-2" />
+                          {fluxImage2 ? fluxImage2.name : 'Choose Scene Image'}
+                        </Button>
+                        <input
+                          id="flux-scene-input"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setFluxImage2(e.target.files?.[0] || null)}
+                          className="hidden"
+                        />
+                      </div>
+                    )}
                     
-                    {fluxImage && (
+                    {/* Image Previews */}
+                    {fluxType === 'remix' && fluxImages.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {fluxImages.slice(0, 4).map((img, index) => (
+                          <div key={index} className="border rounded-lg overflow-hidden relative">
+                            <img
+                              src={URL.createObjectURL(img)}
+                              alt={`Input ${index + 1}`}
+                              className="w-full h-24 object-cover"
+                            />
+                            <div className="absolute top-1 right-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                              {index + 1}
+                            </div>
+                          </div>
+                        ))}
+                        {fluxImages.length > 4 && (
+                          <div className="border rounded-lg flex items-center justify-center bg-gray-100">
+                            <span className="text-sm text-gray-600">+{fluxImages.length - 4} more</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {fluxType !== 'remix' && fluxImage && (
                       <div className="border rounded-lg overflow-hidden">
                         <img
                           src={URL.createObjectURL(fluxImage)}
                           alt="Input"
+                          className="w-full h-48 object-cover"
+                        />
+                      </div>
+                    )}
+
+                    {fluxType === 'rescene' && fluxImage2 && (
+                      <div className="border rounded-lg overflow-hidden">
+                        <img
+                          src={URL.createObjectURL(fluxImage2)}
+                          alt="Scene"
                           className="w-full h-48 object-cover"
                         />
                       </div>
@@ -1011,7 +1109,13 @@ const Index = () => {
                     
                     <Button
                       onClick={handleFluxGenerate}
-                      disabled={!fluxImage || !fluxPrompt || isGenerating}
+                      disabled={
+                        !fluxPrompt || 
+                        isGenerating || 
+                        (fluxType === 'rescene' && (!fluxImage || !fluxImage2)) ||
+                        (fluxType === 'remix' && fluxImages.length < 2) ||
+                        (fluxType !== 'remix' && fluxType !== 'rescene' && !fluxImage)
+                      }
                       className="w-full"
                     >
                       {isGenerating ? 'Generating...' : 'Generate'}
