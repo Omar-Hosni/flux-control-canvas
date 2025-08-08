@@ -253,17 +253,24 @@ export class RunwareService {
 
   // Upload image and get UUID for upscaling operations
   async uploadImage(imageFile: File): Promise<string> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
     const taskUUID = crypto.randomUUID();
     
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
-        const base64String = (reader.result as string).split(',')[1];
+        const dataUri = reader.result as string;
         
         const message = [{
           taskType: "imageUpload",
           taskUUID,
-          image: base64String,
+          image: dataUri, // Send the full data URI including the data:image/... prefix
           outputType: "UUID"
         }];
 
@@ -289,17 +296,24 @@ export class RunwareService {
 
   // Upload image and get URL for other operations
   async uploadImageForURL(imageFile: File): Promise<string> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
     const taskUUID = crypto.randomUUID();
     
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
-        const base64String = (reader.result as string).split(',')[1];
+        const dataUri = reader.result as string;
         
         const message = [{
           taskType: "imageUpload",
           taskUUID,
-          image: base64String,
+          image: dataUri, // Send the full data URI including the data:image/... prefix
           outputType: "URL"
         }];
 
