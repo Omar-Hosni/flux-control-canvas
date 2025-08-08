@@ -155,8 +155,8 @@ const Index = () => {
 
     setIsGenerating(true);
     try {
-      // Upload the seed image first
-      const uploadedImageUrl = await runwareService.uploadImage(img2imgImage);
+      // Upload the seed image first - use uploadImageForURL for img2img
+      const uploadedImageUrl = await runwareService.uploadImageForURL(img2imgImage);
       
       // Use seedImage parameter for image-to-image generation
       const result = await runwareService.generateImage({
@@ -191,17 +191,22 @@ const Index = () => {
 
     setIsProcessing(true);
     try {
-      // Upload the image first to get UUID
-      const uploadedImageUrl = await runwareService.uploadImage(toolImage);
+      // For upscaling, use UUID upload; for other tools, use URL upload
+      let uploadedImageId;
+      if (toolType === 'upscale') {
+        uploadedImageId = await runwareService.uploadImage(toolImage); // Returns UUID
+      } else {
+        uploadedImageId = await runwareService.uploadImageForURL(toolImage); // Returns URL
+      }
       let result;
 
       switch (toolType) {
         case 'removebg':
-          result = await runwareService.removeBackground({ inputImage: uploadedImageUrl });
+          result = await runwareService.removeBackground({ inputImage: uploadedImageId });
           break;
         case 'upscale':
           result = await runwareService.upscaleImage({ 
-            inputImage: uploadedImageUrl, 
+            inputImage: uploadedImageId, // This is now a UUID
             upscaleFactor: upscaleFactor as 2 | 3 | 4
           });
           break;
@@ -210,9 +215,9 @@ const Index = () => {
             toast.error('Please provide mask image and prompt for inpainting');
             return;
           }
-          const uploadedMaskUrl = await runwareService.uploadImage(maskImage);
+          const uploadedMaskUrl = await runwareService.uploadImageForURL(maskImage);
           result = await runwareService.inpaintImage({
-            seedImage: uploadedImageUrl, // Use seedImage instead of inputImage
+            seedImage: uploadedImageId, // This is a URL
             maskImage: uploadedMaskUrl,
             positivePrompt: inpaintPrompt
           });
@@ -223,7 +228,7 @@ const Index = () => {
             return;
           }
           result = await runwareService.outpaintImage({
-            inputImage: uploadedImageUrl,
+            inputImage: uploadedImageId, // This is a URL
             positivePrompt: outpaintPrompt,
             outpaintDirection,
             outpaintAmount
@@ -265,11 +270,11 @@ const Index = () => {
     setIsGenerating(true);
     try {
       // Upload the image first to get proper URL
-      const uploadedImageUrl = await runwareService.uploadImage(fluxImage);
+      const uploadedImageUrl = await runwareService.uploadImageForURL(fluxImage);
       let result;
 
       // Get transformation type - use 'reference' as default for Kontext Pro
-      const transformationType = fluxKontextPro ? 'reference' : fluxType;
+      const transformationType = fluxType;
 
       switch (transformationType) {
         case 'reference':
@@ -690,11 +695,11 @@ const Index = () => {
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="2">2x</SelectItem>
-                              <SelectItem value="4">4x</SelectItem>
-                              <SelectItem value="8">8x</SelectItem>
-                            </SelectContent>
+                             <SelectContent>
+                               <SelectItem value="2">2x</SelectItem>
+                               <SelectItem value="3">3x</SelectItem>
+                               <SelectItem value="4">4x</SelectItem>
+                             </SelectContent>
                           </Select>
                         </div>
                         

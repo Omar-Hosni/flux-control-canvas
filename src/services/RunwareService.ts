@@ -1,39 +1,45 @@
 import { toast } from "sonner";
 
 const API_ENDPOINT = "wss://ws-api.runware.ai/v1";
-const DEFAULT_API_KEY = "J9GGKxXu8hDhbW1mXOPaNHBH8S48QnhT";
-
-export interface ControlNetPreprocessor {
-  id: string;
-  name: string;
-  description: string;
-  taskType: "imageControlNetPreProcess";
-  preprocessor: string;
-}
 
 export interface GenerateImageParams {
   positivePrompt: string;
   model?: string;
   numberResults?: number;
   outputFormat?: string;
+  CFGScale?: number;
+  scheduler?: string;
+  strength?: number;
+  promptWeighting?: "compel" | "sdEmbeds";
+  seed?: number | null;
+  lora?: string[];
   width?: number;
   height?: number;
   steps?: number;
-  CFGScale?: number;
-  scheduler?: string;
   controlNet?: Array<{
     model: string;
     guideImage: string;
     weight: number;
     startStep: number;
     endStep: number;
-    controlMode: string;
+    controlMode: "balanced" | "prompt" | "controlnet";
   }>;
-  seedImage?: string; // For image-to-image generation
-  strength?: number; // Strength for image-to-image
+  seedImage?: string;
 }
 
-// Image-to-Image generation parameters
+export interface FluxKontextParams {
+  positivePrompt: string;
+  referenceImages: string[];
+  model?: string;
+  numberResults?: number;
+  outputFormat?: string;
+  CFGScale?: number;
+  width?: number;
+  height?: number;
+  steps?: number;
+  sizeRatio?: string;
+}
+
 export interface ImageToImageParams {
   positivePrompt: string;
   inputImage: string;
@@ -46,57 +52,6 @@ export interface ImageToImageParams {
   steps?: number;
   CFGScale?: number;
   scheduler?: string;
-}
-
-// Flux Kontext parameters
-export interface FluxKontextParams {
-  positivePrompt: string;
-  referenceImages: string[];
-  model?: string;
-  numberResults?: number;
-  outputFormat?: string;
-  width?: number;
-  height?: number;
-  steps?: number;
-  CFGScale?: number;
-}
-
-// Background removal parameters
-export interface BackgroundRemovalParams {
-  inputImage: string;
-  outputFormat?: string;
-}
-
-// Upscaling parameters
-export interface UpscaleParams {
-  inputImage: string;
-  upscaleFactor: 2 | 3 | 4;
-  outputFormat?: string;
-}
-
-// Inpainting parameters
-export interface InpaintParams {
-  seedImage: string; // Use seedImage instead of inputImage
-  maskImage: string;
-  positivePrompt: string;
-  model?: string;
-  outputFormat?: string;
-  width?: number;
-  height?: number;
-  steps?: number;
-  CFGScale?: number;
-}
-
-// Outpainting parameters
-export interface OutpaintParams {
-  inputImage: string;
-  positivePrompt: string;
-  outpaintDirection: 'up' | 'down' | 'left' | 'right' | 'all';
-  outpaintAmount: number;
-  model?: string;
-  outputFormat?: string;
-  steps?: number;
-  CFGScale?: number;
 }
 
 export interface GeneratedImage {
@@ -112,7 +67,50 @@ export interface PreprocessedImage {
   preprocessor: string;
 }
 
-// Processed image result interface
+export interface ControlNetPreprocessor {
+  id: string;
+  name: string;
+  description: string;
+  taskType: string;
+  preprocessor: string;
+}
+
+export interface RemoveBackgroundParams {
+  inputImage: string;
+  outputFormat?: string;
+}
+
+export interface UpscaleParams {
+  inputImage: string;
+  upscaleFactor: 2 | 3 | 4;
+  outputFormat?: string;
+}
+
+export interface InpaintParams {
+  seedImage: string;
+  maskImage: string;
+  positivePrompt: string;
+  model?: string;
+  numberResults?: number;
+  outputFormat?: string;
+  width?: number;
+  height?: number;
+  steps?: number;
+  CFGScale?: number;
+}
+
+export interface OutpaintParams {
+  inputImage: string;
+  positivePrompt: string;
+  outpaintDirection: 'up' | 'down' | 'left' | 'right' | 'all';
+  outpaintAmount: number;
+  model?: string;
+  numberResults?: number;
+  outputFormat?: string;
+  steps?: number;
+  CFGScale?: number;
+}
+
 export interface ProcessedImageResult {
   imageURL: string;
   taskType: string;
@@ -222,7 +220,7 @@ export class RunwareService {
     }
 
     // First upload the image
-    const uploadedImageUrl = await this.uploadImage(imageFile);
+    const uploadedImageUrl = await this.uploadImageForURL(imageFile);
     
     const taskUUID = crypto.randomUUID();
     
@@ -253,70 +251,72 @@ export class RunwareService {
     });
   }
 
-  // Helper function to resize image for upscaling
-  private resizeImageForUpscale(file: File): Promise<File> {
-    return new Promise((resolve) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d')!;
-      const img = new Image();
-      
-      img.onload = () => {
-        const maxPixels = 1153433; // API limit
-        const currentPixels = img.width * img.height;
-        
-        if (currentPixels <= maxPixels) {
-          resolve(file);
-          return;
-        }
-        
-        // Calculate scale factor to fit within pixel limit
-        const scaleFactor = Math.sqrt(maxPixels / currentPixels);
-        const newWidth = Math.floor(img.width * scaleFactor);
-        const newHeight = Math.floor(img.height * scaleFactor);
-        
-        canvas.width = newWidth;
-        canvas.height = newHeight;
-        ctx.drawImage(img, 0, 0, newWidth, newHeight);
-        
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const resizedFile = new File([blob], file.name, { type: file.type });
-            resolve(resizedFile);
-          } else {
-            resolve(file);
-          }
-        }, file.type);
-      };
-      
-      img.src = URL.createObjectURL(file);
-    });
-  }
-
+  // Upload image and get UUID for upscaling operations
   async uploadImage(imageFile: File): Promise<string> {
     const taskUUID = crypto.randomUUID();
     
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
-        const base64Data = reader.result as string;
+        const base64String = (reader.result as string).split(',')[1];
         
         const message = [{
           taskType: "imageUpload",
           taskUUID,
-          image: base64Data
+          image: base64String,
+          outputType: "UUID"
         }];
+
+        console.log("Sending image upload message for UUID");
 
         this.messageCallbacks.set(taskUUID, (data) => {
           if (data.error) {
             reject(new Error(data.errorMessage));
           } else {
+            console.log("Upload response:", data);
+            // Return UUID for upscaling operations
+            resolve(data.imageUUID);
+          }
+        });
+
+        this.ws.send(JSON.stringify(message));
+      };
+
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(imageFile);
+    });
+  }
+
+  // Upload image and get URL for other operations
+  async uploadImageForURL(imageFile: File): Promise<string> {
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64String = (reader.result as string).split(',')[1];
+        
+        const message = [{
+          taskType: "imageUpload",
+          taskUUID,
+          image: base64String,
+          outputType: "URL"
+        }];
+
+        console.log("Sending image upload message for URL");
+
+        this.messageCallbacks.set(taskUUID, (data) => {
+          if (data.error) {
+            reject(new Error(data.errorMessage));
+          } else {
+            // Return URL for other operations
             resolve(data.imageURL);
           }
         });
 
         this.ws.send(JSON.stringify(message));
       };
-      
+
       reader.onerror = () => reject(new Error("Failed to read file"));
       reader.readAsDataURL(imageFile);
     });
@@ -336,14 +336,16 @@ export class RunwareService {
       const message = [{
         taskType: "imageInference",
         taskUUID,
-        model: params.model || "runware:101@1",
-        numberResults: params.numberResults || 1,
-        outputFormat: params.outputFormat || "JPEG",
+        model: params.model || "runware:100@1",
         width: params.width || 1024,
         height: params.height || 1024,
-        steps: params.steps || 28,
-        CFGScale: params.CFGScale || 3.5,
+        numberResults: params.numberResults || 1,
+        outputFormat: params.outputFormat || "WEBP",
+        steps: params.steps || 4,
+        CFGScale: params.CFGScale || 1,
         scheduler: params.scheduler || "FlowMatchEulerDiscreteScheduler",
+        strength: params.strength || 0.8,
+        lora: params.lora || [],
         includeCost: true,
         outputType: ["URL"],
         positivePrompt: params.positivePrompt,
@@ -432,8 +434,9 @@ export class RunwareService {
         height: params.height || 1024,
         steps: params.steps || 28,
         CFGScale: params.CFGScale || 2.5,
+        scheduler: "Default",
         includeCost: true,
-        outputType: ["URL"],
+        outputType: ["dataURI", "URL"],
         positivePrompt: params.positivePrompt,
         referenceImages: params.referenceImages, // Use referenceImages instead of inputImages
         outputQuality: 85,
@@ -488,7 +491,7 @@ export class RunwareService {
         width: params.width || dimensions.width,
         height: params.height || dimensions.height,
         includeCost: true,
-        outputType: ["URL"],
+        outputType: ["dataURI", "URL"],
         positivePrompt: params.positivePrompt,
         referenceImages: params.referenceImages,
         outputQuality: 85,
@@ -512,7 +515,7 @@ export class RunwareService {
   }
 
   // Background removal
-  async removeBackground(params: BackgroundRemovalParams): Promise<ProcessedImageResult> {
+  async removeBackground(params: RemoveBackgroundParams): Promise<ProcessedImageResult> {
     await this.connectionPromise;
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
@@ -564,7 +567,7 @@ export class RunwareService {
       const message = [{
         taskType: "imageUpscale",
         taskUUID,
-        inputImage: params.inputImage,
+        inputImage: params.inputImage, // This should be a UUID from uploadImage
         upscaleFactor: params.upscaleFactor,
         outputFormat: params.outputFormat || "JPG",
         outputType: ["URL"]
