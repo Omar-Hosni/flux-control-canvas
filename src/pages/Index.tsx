@@ -77,6 +77,17 @@ const Index = () => {
     }
   }, [apiKey]);
 
+  const getBuiltInPrompt = (type: string) => {
+    switch (type) {
+      case 'reference': return `Apply ${referenceType} reference transformation`;
+      case 'reimagine': return 'Reimagine this image with creative variations';
+      case 'rescene': return 'Blend this object into this scene while maintaining all details and realistic lighting';
+      case 'reangle': return 'Change camera angle of this image by 15 degrees to right direction';
+      case 'remix': return 'Creatively blend and remix these images into a cohesive composition';
+      default: return 'Transform this image';
+    }
+  };
+
   const handleApiKeySet = (key: string) => {
     setApiKey(key);
     localStorage.setItem('runware_api_key', key);
@@ -264,8 +275,8 @@ const Index = () => {
 
   // Flux Kontext generation
   const handleFluxGenerate = async () => {
-    if (!fluxPrompt || !runwareService) {
-      toast.error('Please enter a prompt');
+    if (!runwareService) {
+      toast.error('Service not initialized');
       return;
     }
 
@@ -287,6 +298,9 @@ const Index = () => {
     try {
       let result;
       const transformationType = fluxType;
+      
+      // Use custom prompt if provided, otherwise use built-in prompts
+      const finalPrompt = fluxPrompt.trim() || getBuiltInPrompt(transformationType);
 
       switch (transformationType) {
         case 'reference':
@@ -297,7 +311,7 @@ const Index = () => {
           if (transformationType === 'reference') {
             result = await runwareService.generateReference(
               uploadedImageUrl,
-              fluxPrompt,
+              finalPrompt,
               referenceType,
               fluxKontextPro,
               fluxKontextPro ? sizeRatio : undefined
@@ -305,7 +319,7 @@ const Index = () => {
           } else if (transformationType === 'reimagine') {
             result = await runwareService.generateReImagine(
               uploadedImageUrl,
-              fluxPrompt,
+              finalPrompt,
               fluxKontextPro,
               fluxKontextPro ? sizeRatio : undefined
             );
@@ -321,9 +335,15 @@ const Index = () => {
           break;
 
         case 'rescene':
-          // Two image operation
+          // Two image operation - upload images sequentially to avoid conflicts
+          console.log('Uploading object image...');
           const objectImageUrl = await runwareService.uploadImageForURL(fluxImage!);
+          console.log('Object image uploaded:', objectImageUrl);
+          
+          console.log('Uploading scene image...');
           const sceneImageUrl = await runwareService.uploadImageForURL(fluxImage2!);
+          console.log('Scene image uploaded:', sceneImageUrl);
+          
           result = await runwareService.generateReScene(
             objectImageUrl,
             sceneImageUrl,
@@ -333,9 +353,19 @@ const Index = () => {
           break;
 
         case 'remix':
-          // Multiple image operation
-          const uploadPromises = fluxImages.map(img => runwareService.uploadImageForURL(img));
-          const uploadedImageUrls = await Promise.all(uploadPromises);
+          // Multiple image operation - upload images sequentially to avoid conflicts
+          console.log(`Uploading ${fluxImages.length} images for remix...`);
+          const uploadedImageUrls: string[] = [];
+          
+          for (let i = 0; i < fluxImages.length; i++) {
+            console.log(`Uploading image ${i + 1}/${fluxImages.length}...`);
+            const url = await runwareService.uploadImageForURL(fluxImages[i]);
+            console.log(`Image ${i + 1} uploaded:`, url);
+            uploadedImageUrls.push(url);
+            // Add small delay between uploads to prevent conflicts
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+          
           result = await runwareService.generateReMix(
             uploadedImageUrls,
             fluxKontextPro,
@@ -1097,20 +1127,22 @@ const Index = () => {
                         </div>
                       )}
                     
-                    <div>
-                      <Label className="text-sm font-medium">Prompt</Label>
-                      <Textarea
-                        value={fluxPrompt}
-                        onChange={(e) => setFluxPrompt(e.target.value)}
-                        placeholder="Describe the transformation..."
-                        className="h-24"
-                      />
-                    </div>
+                     <div>
+                       <Label className="text-sm font-medium">Prompt (Optional)</Label>
+                       <Textarea
+                         value={fluxPrompt}
+                         onChange={(e) => setFluxPrompt(e.target.value)}
+                         placeholder={`Leave empty to use built-in prompt for ${fluxType}...`}
+                         className="h-24"
+                       />
+                       <p className="text-xs text-muted-foreground mt-1">
+                         Built-in prompt: "{getBuiltInPrompt(fluxType)}"
+                       </p>
+                     </div>
                     
                     <Button
                       onClick={handleFluxGenerate}
                       disabled={
-                        !fluxPrompt || 
                         isGenerating || 
                         (fluxType === 'rescene' && (!fluxImage || !fluxImage2)) ||
                         (fluxType === 'remix' && fluxImages.length < 2) ||
