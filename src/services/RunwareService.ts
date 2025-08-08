@@ -51,7 +51,7 @@ export interface ImageToImageParams {
 // Flux Kontext parameters
 export interface FluxKontextParams {
   positivePrompt: string;
-  inputImages: string[];
+  referenceImages: string[];
   model?: string;
   numberResults?: number;
   outputFormat?: string;
@@ -59,10 +59,6 @@ export interface FluxKontextParams {
   height?: number;
   steps?: number;
   CFGScale?: number;
-  ipadapters?: Array<{
-    imageURL: string;
-    weight: number;
-  }>;
 }
 
 // Background removal parameters
@@ -259,6 +255,45 @@ export class RunwareService {
     });
   }
 
+  // Helper function to resize image for upscaling
+  private resizeImageForUpscale(file: File): Promise<File> {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      const img = new Image();
+      
+      img.onload = () => {
+        const maxPixels = 1153433; // API limit
+        const currentPixels = img.width * img.height;
+        
+        if (currentPixels <= maxPixels) {
+          resolve(file);
+          return;
+        }
+        
+        // Calculate scale factor to fit within pixel limit
+        const scaleFactor = Math.sqrt(maxPixels / currentPixels);
+        const newWidth = Math.floor(img.width * scaleFactor);
+        const newHeight = Math.floor(img.height * scaleFactor);
+        
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        ctx.drawImage(img, 0, 0, newWidth, newHeight);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const resizedFile = new File([blob], file.name, { type: file.type });
+            resolve(resizedFile);
+          } else {
+            resolve(file);
+          }
+        }, file.type);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
   async uploadImage(imageFile: File): Promise<string> {
     const taskUUID = crypto.randomUUID();
     
@@ -392,18 +427,21 @@ export class RunwareService {
       const message = [{
         taskType: "imageInference",
         taskUUID,
-        model: params.model || "runware:502@1", // Flux Kontext model
+        model: params.model || "runware:106@1", // Updated Flux Kontext model
         numberResults: params.numberResults || 1,
         outputFormat: params.outputFormat || "JPEG",
         width: params.width || 1024,
         height: params.height || 1024,
         steps: params.steps || 28,
-        CFGScale: params.CFGScale || 3.5,
+        CFGScale: params.CFGScale || 2.5,
         includeCost: true,
         outputType: ["URL"],
         positivePrompt: params.positivePrompt,
-        inputImages: params.inputImages,
-        ...(params.ipadapters && { ipadapters: params.ipadapters })
+        referenceImages: params.referenceImages, // Use referenceImages instead of inputImages
+        outputQuality: 85,
+        advancedFeatures: {
+          guidanceEndStepPercentage: 75
+        }
       }];
 
       console.log("Sending Flux Kontext generation message:", message);
@@ -458,13 +496,23 @@ export class RunwareService {
     });
   }
 
-  // Image upscaling
-  async upscaleImage(params: UpscaleParams): Promise<ProcessedImageResult> {
+  // Image upscaling with automatic resizing
+  async upscaleImage(params: UpscaleParams & { originalFile?: File }): Promise<ProcessedImageResult> {
     await this.connectionPromise;
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
       this.connectionPromise = this.connect();
       await this.connectionPromise;
+    }
+
+    let inputImage = params.inputImage;
+    
+    // If original file is provided, resize it if needed before upscaling
+    if (params.originalFile) {
+      const resizedFile = await this.resizeImageForUpscale(params.originalFile);
+      if (resizedFile !== params.originalFile) {
+        inputImage = await this.uploadImage(resizedFile);
+      }
     }
 
     const taskUUID = crypto.randomUUID();
@@ -473,7 +521,7 @@ export class RunwareService {
       const message = [{
         taskType: "imageUpscale",
         taskUUID,
-        inputImage: params.inputImage,
+        inputImage,
         upscaleFactor: params.upscaleFactor,
         outputFormat: params.outputFormat || "JPEG",
         outputType: ["URL"],
@@ -589,7 +637,7 @@ export class RunwareService {
     const enhancedPrompt = `Apply ${referenceType} reference: ${prompt}`;
     return this.generateFluxKontext({
       positivePrompt: enhancedPrompt,
-      inputImages: [inputImage]
+      referenceImages: [inputImage]
     });
   }
 
@@ -598,7 +646,7 @@ export class RunwareService {
     const prompt = "Blend this object into this scene while maintaining all details and realistic lighting";
     return this.generateFluxKontext({
       positivePrompt: prompt,
-      inputImages: [objectImage, sceneImage]
+      referenceImages: [objectImage, sceneImage]
     });
   }
 
@@ -607,22 +655,16 @@ export class RunwareService {
     const prompt = `Change camera angle of this image by ${degrees} degrees to ${direction} direction`;
     return this.generateFluxKontext({
       positivePrompt: prompt,
-      inputImages: [inputImage]
+      referenceImages: [inputImage]
     });
   }
 
   // Re-mix node: blend multiple images using ipadapters
   async generateReMix(inputImages: string[], weights?: number[]): Promise<GeneratedImage> {
-    const ipadapters = inputImages.map((imageURL, index) => ({
-      imageURL,
-      weight: weights?.[index] || 1.0
-    }));
-
     const prompt = "Creatively blend and remix these images into a cohesive composition";
     return this.generateFluxKontext({
       positivePrompt: prompt,
-      inputImages,
-      ipadapters
+      referenceImages: inputImages
     });
   }
 
