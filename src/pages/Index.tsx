@@ -270,7 +270,7 @@ const Index = () => {
     }
   };
 
-  // Merger generation
+  // Merger generation function
   const handleMergerGenerate = async () => {
     if (!runwareService || mergerImages.length === 0 || !mergerPrompt) {
       toast.error('Please select images and enter a prompt');
