@@ -31,6 +31,11 @@ const Index = () => {
   const [runwareService, setRunwareService] = useState<RunwareService | null>(null);
   const [activeTab, setActiveTab] = useState<string>("texttoimage");
   
+  // Merger states
+  const [mergerImages, setMergerImages] = useState<File[]>([]);
+  const [mergerPrompt, setMergerPrompt] = useState<string>("");
+  const [mergerImageWeights, setMergerImageWeights] = useState<number[]>([]);
+  
   // ControlNet states
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedPreprocessor, setSelectedPreprocessor] = useState<string | null>(null);
@@ -265,6 +270,55 @@ const Index = () => {
     }
   };
 
+  // Merger generation
+  const handleMergerGenerate = async () => {
+    if (!runwareService || mergerImages.length === 0 || !mergerPrompt) {
+      toast.error('Please select images and enter a prompt');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      // Upload all images and get their URLs
+      const uploadedImageUrls: string[] = [];
+      
+      for (let i = 0; i < mergerImages.length; i++) {
+        console.log(`Uploading image ${i + 1}/${mergerImages.length}...`);
+        const url = await runwareService.uploadImageForURL(mergerImages[i]);
+        uploadedImageUrls.push(url);
+        // Add small delay between uploads to prevent conflicts
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      // Create ipAdapters array with the uploaded images and weights
+      const ipAdapters = uploadedImageUrls.map((url, index) => ({
+        model: "runware:55@1", // Default IP adapter model
+        guideImage: url,
+        weight: mergerImageWeights[index] || 1.0
+      }));
+
+      // Generate with ipAdapters
+      const result = await runwareService.generateImage({
+        positivePrompt: mergerPrompt,
+        model: 'runware:101@1',
+        width: 1024,
+        height: 1024,
+        numberResults: 1,
+        outputFormat: 'WEBP',
+        ipAdapters
+      });
+
+      setGeneratedImages(prev => [result, ...prev]);
+      toast.success('Image generated successfully!');
+    } catch (error) {
+      console.error('Generation failed:', error);
+      toast.error('Failed to generate image. Please try again.');
+      setIsGenerating(false); // Reset state immediately on error
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Helper function to get dimensions based on ratio
   const getDimensionsFromRatio = (ratio: string) => {
     const ratioMap = {
@@ -433,7 +487,7 @@ const Index = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="texttoimage" className="gap-2">
               <Zap className="w-4 h-4" />
               Text-to-Image
@@ -441,6 +495,10 @@ const Index = () => {
             <TabsTrigger value="img2img" className="gap-2">
               <ImageIcon className="w-4 h-4" />
               Image-to-Image
+            </TabsTrigger>
+            <TabsTrigger value="merger" className="gap-2">
+              <Palette className="w-4 h-4" />
+              Merger (Re-mix)
             </TabsTrigger>
             <TabsTrigger value="tools" className="gap-2">
               <Wand2 className="w-4 h-4" />
@@ -682,6 +740,156 @@ const Index = () => {
                       className="w-full"
                     >
                       {isGenerating ? 'Generating...' : 'Generate'}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-1">
+                <ResultsGallery
+                  results={generatedImages}
+                  isGenerating={isGenerating}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Merger Tab */}
+          <TabsContent value="merger">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
+                <Card className="p-6 bg-ai-surface border-border shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-gradient-primary">
+                      <Palette className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Merger (Re-mix)
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Merge multiple images using ipAdapters
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Upload Images (Multiple)</Label>
+                      <Button
+                        variant="outline"
+                        className="w-full h-32 border-dashed"
+                        onClick={() => document.getElementById('merger-input')?.click()}
+                      >
+                        <Upload className="w-6 h-6 mr-2" />
+                        {mergerImages.length > 0 ? `${mergerImages.length} images selected` : 'Choose Multiple Images'}
+                      </Button>
+                      <input
+                        id="merger-input"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setMergerImages(files);
+                          // Initialize weights array with default values
+                          setMergerImageWeights(files.map(() => 1.0));
+                        }}
+                        className="hidden"
+                      />
+                    </div>
+                    
+                    {mergerImages.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {mergerImages.slice(0, 4).map((img, index) => (
+                          <div key={index} className="border rounded-lg overflow-hidden relative">
+                            <img
+                              src={URL.createObjectURL(img)}
+                              alt={`Input ${index + 1}`}
+                              className="w-full h-24 object-cover"
+                            />
+                            <div className="absolute top-1 right-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                              {index + 1}
+                            </div>
+                          </div>
+                        ))}
+                        {mergerImages.length > 4 && (
+                          <div className="border rounded-lg flex items-center justify-center bg-gray-100">
+                            <span className="text-sm text-gray-600">+{mergerImages.length - 4} more</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-1">
+                <Card className="p-6 bg-ai-surface border-border shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-gradient-primary">
+                      <Settings className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Merger Settings
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Configure merging parameters
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Prompt</Label>
+                      <Textarea
+                        value={mergerPrompt}
+                        onChange={(e) => setMergerPrompt(e.target.value)}
+                        placeholder="Describe how to merge the images..."
+                        className="h-24"
+                      />
+                    </div>
+                    
+                    {mergerImages.length > 0 && (
+                      <div>
+                        <Label className="text-sm font-medium">Image Weights</Label>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Adjust the influence of each image (0.0 - 2.0)
+                        </p>
+                        <div className="space-y-3">
+                          {mergerImages.map((img, index) => (
+                            <div key={index} className="flex items-center gap-3">
+                              <span className="text-sm font-medium w-16">
+                                Image {index + 1}:
+                              </span>
+                              <Slider
+                                value={[mergerImageWeights[index] || 1.0]}
+                                onValueChange={(value) => {
+                                  const newWeights = [...mergerImageWeights];
+                                  newWeights[index] = value[0];
+                                  setMergerImageWeights(newWeights);
+                                }}
+                                min={0}
+                                max={2}
+                                step={0.1}
+                                className="flex-1"
+                              />
+                              <span className="text-sm text-muted-foreground w-8">
+                                {(mergerImageWeights[index] || 1.0).toFixed(1)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <Button
+                      onClick={handleMergerGenerate}
+                      disabled={mergerImages.length === 0 || !mergerPrompt || isGenerating}
+                      className="w-full"
+                    >
+                      {isGenerating ? 'Generating...' : 'Generate Merged Image'}
                     </Button>
                   </div>
                 </Card>
@@ -1088,13 +1296,12 @@ const Index = () => {
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="reference">Reference</SelectItem>
-                              <SelectItem value="reimagine">Re-imagine</SelectItem>
-                              <SelectItem value="rescene">Re-scene</SelectItem>
-                              <SelectItem value="reangle">Re-angle</SelectItem>
-                              <SelectItem value="remix">Re-mix</SelectItem>
-                            </SelectContent>
+                             <SelectContent>
+                               <SelectItem value="reference">Reference</SelectItem>
+                               <SelectItem value="reimagine">Re-imagine</SelectItem>
+                               <SelectItem value="rescene">Re-scene</SelectItem>
+                               <SelectItem value="reangle">Re-angle</SelectItem>
+                             </SelectContent>
                           </Select>
                         </div>
                       )}
@@ -1107,13 +1314,12 @@ const Index = () => {
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="reference">Reference</SelectItem>
-                              <SelectItem value="reimagine">Re-imagine</SelectItem>
-                              <SelectItem value="rescene">Re-scene</SelectItem>
-                              <SelectItem value="reangle">Re-angle</SelectItem>
-                              <SelectItem value="remix">Re-mix</SelectItem>
-                            </SelectContent>
+                             <SelectContent>
+                               <SelectItem value="reference">Reference</SelectItem>
+                               <SelectItem value="reimagine">Re-imagine</SelectItem>
+                               <SelectItem value="rescene">Re-scene</SelectItem>
+                               <SelectItem value="reangle">Re-angle</SelectItem>
+                             </SelectContent>
                           </Select>
                         </div>
                       )}

@@ -2,6 +2,12 @@ import { toast } from "sonner";
 
 const API_ENDPOINT = "wss://ws-api.runware.ai/v1";
 
+export interface IpAdapter {
+  model: string;
+  guideImage: string;
+  weight: number;
+}
+
 export interface GenerateImageParams {
   positivePrompt: string;
   negativePrompt?: string;
@@ -33,6 +39,7 @@ export interface GenerateImageParams {
     controlMode: "balanced" | "prompt" | "controlnet";
   }>;
   seedImage?: string;
+  ipAdapters?: IpAdapter[];
 }
 
 export interface FluxKontextParams {
@@ -375,7 +382,8 @@ export class RunwareService {
         ...(params.acceleratorOptions && { acceleratorOptions: params.acceleratorOptions }),
         ...(params.controlNet && { controlNet: params.controlNet }),
         ...(params.seedImage && { seedImage: params.seedImage }),
-        ...(params.strength && { strength: params.strength })
+        ...(params.strength && { strength: params.strength }),
+        ...(params.ipAdapters && { ipAdapters: params.ipAdapters })
       }];
 
       console.log("Sending image generation message:", message);
