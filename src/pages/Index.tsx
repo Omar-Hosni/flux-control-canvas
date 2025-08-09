@@ -292,7 +292,7 @@ const Index = () => {
 
       // Create ipAdapters array with the uploaded images and weights
       const ipAdapters = uploadedImageUrls.map((url, index) => ({
-        model: "ip-adapter-plus", // Valid AIR identifier for IP adapters
+        model: "runware:105@1", // Correct AIR identifier for IP adapters
         guideImage: url,
         weight: mergerImageWeights[index] || 1.0
       }));
