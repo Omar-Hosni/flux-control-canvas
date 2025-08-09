@@ -292,7 +292,7 @@ const Index = () => {
 
       // Create ipAdapters array with the uploaded images and weights
       const ipAdapters = uploadedImageUrls.map((url, index) => ({
-        model: "runware:16@1", // Compatible IP adapter model for FLUX
+        model: "ip-adapter-plus", // Valid AIR identifier for IP adapters
         guideImage: url,
         weight: mergerImageWeights[index] || 1.0
       }));
