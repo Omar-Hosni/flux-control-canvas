@@ -11,6 +11,8 @@ import {
   Edge,
   Node,
   NodeTypes,
+  applyNodeChanges,
+  applyEdgeChanges,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -58,25 +60,11 @@ export const WorkflowEditor = () => {
   }, [nodes.length, setNodes]);
 
   const onNodesChange = useCallback((changes: any) => {
-    setNodes(changes.reduce((acc: any, change: any) => {
-      if (change.type === 'position' || change.type === 'dimensions') {
-        return acc.map((node: any) => 
-          node.id === change.id 
-            ? { ...node, ...change }
-            : node
-        );
-      }
-      return acc;
-    }, nodes));
+    setNodes(applyNodeChanges(changes, nodes));
   }, [nodes, setNodes]);
 
   const onEdgesChange = useCallback((changes: any) => {
-    setEdges(changes.reduce((acc: any, change: any) => {
-      if (change.type === 'remove') {
-        return acc.filter((edge: any) => edge.id !== change.id);
-      }
-      return acc;
-    }, edges));
+    setEdges(applyEdgeChanges(changes, edges));
   }, [edges, setEdges]);
 
   const onConnect = useCallback(
