@@ -19,10 +19,9 @@ interface GearNodeProps {
 }
 
 const LORA_MODELS = [
-  { value: 'runware:25@1', label: 'LoRA Style 1' },
-  { value: 'runware:26@1', label: 'LoRA Style 2' },
-  { value: 'runware:27@1', label: 'LoRA Style 3' },
-  { value: 'runware:28@1', label: 'LoRA Style 4' },
+  { value: 'runware:25@1', label: 'Amateur Photography' },
+  { value: 'runware:26@1', label: 'Detail Tweaker' },
+  { value: 'runware:27@1', label: 'Realistic' },
 ];
 
 export const GearNode = memo(({ id, data }: GearNodeProps) => {

@@ -25,7 +25,8 @@ import { ToolNode } from './nodes/ToolNode';
 import { EngineNode } from './nodes/EngineNode';
 import { GearNode } from './nodes/GearNode';
 import { OutputNode } from './nodes/OutputNode';
-import { WorkflowToolbar } from './WorkflowToolbar';
+import { LeftSidebar } from './LeftSidebar';
+import { RightSidebar } from './RightSidebar';
 import { useWorkflowStore } from '../../stores/workflowStore';
 
 // Define node types
@@ -52,7 +53,8 @@ const initialNodes: Node[] = [
 const initialEdges: Edge[] = [];
 
 export const WorkflowEditor = () => {
-  const { nodes, edges, isGenerating, setNodes, setEdges } = useWorkflowStore();
+  const { nodes, edges, selectedNodeId, setSelectedNodeId, setNodes, setEdges } = useWorkflowStore();
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
   // Initialize with default nodes if empty
   useEffect(() => {
@@ -60,6 +62,16 @@ export const WorkflowEditor = () => {
       setNodes(initialNodes);
     }
   }, [nodes.length, setNodes]);
+
+  // Update selected node when selectedNodeId changes
+  useEffect(() => {
+    if (selectedNodeId) {
+      const node = nodes.find(n => n.id === selectedNodeId);
+      setSelectedNode(node || null);
+    } else {
+      setSelectedNode(null);
+    }
+  }, [selectedNodeId, nodes]);
 
   const onNodesChange = useCallback((changes: any) => {
     setNodes(applyNodeChanges(changes, nodes));
@@ -74,6 +86,14 @@ export const WorkflowEditor = () => {
     [edges, setEdges],
   );
 
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id);
+  }, [setSelectedNodeId]);
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+  }, [setSelectedNodeId]);
+
   const addNode = useCallback((type: string, nodeData: any) => {
     const newNode: Node = {
       id: `${type}-${Date.now()}`,
@@ -85,8 +105,8 @@ export const WorkflowEditor = () => {
   }, [nodes, setNodes]);
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <WorkflowToolbar onAddNode={addNode} />
+    <div className="h-screen flex bg-background">
+      <LeftSidebar onAddNode={addNode} />
       
       <div className="flex-1">
         <ReactFlow
@@ -95,6 +115,8 @@ export const WorkflowEditor = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           fitView
           className="bg-ai-surface"
@@ -109,6 +131,8 @@ export const WorkflowEditor = () => {
           />
         </ReactFlow>
       </div>
+
+      <RightSidebar selectedNode={selectedNode} />
     </div>
   );
 };
