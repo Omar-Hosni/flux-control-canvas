@@ -48,22 +48,40 @@ const initialNodes: Node[] = [
 const initialEdges: Edge[] = [];
 
 export const WorkflowEditor = () => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const { isGenerating, setNodes: setStoreNodes, setEdges: setStoreEdges } = useWorkflowStore();
+  const { nodes, edges, isGenerating, setNodes, setEdges } = useWorkflowStore();
 
-  // Sync local state with store
+  // Initialize with default nodes if empty
   useEffect(() => {
-    setStoreNodes(nodes);
-  }, [nodes, setStoreNodes]);
+    if (nodes.length === 0) {
+      setNodes(initialNodes);
+    }
+  }, [nodes.length, setNodes]);
 
-  useEffect(() => {
-    setStoreEdges(edges);
-  }, [edges, setStoreEdges]);
+  const onNodesChange = useCallback((changes: any) => {
+    setNodes(changes.reduce((acc: any, change: any) => {
+      if (change.type === 'position' || change.type === 'dimensions') {
+        return acc.map((node: any) => 
+          node.id === change.id 
+            ? { ...node, ...change }
+            : node
+        );
+      }
+      return acc;
+    }, nodes));
+  }, [nodes, setNodes]);
+
+  const onEdgesChange = useCallback((changes: any) => {
+    setEdges(changes.reduce((acc: any, change: any) => {
+      if (change.type === 'remove') {
+        return acc.filter((edge: any) => edge.id !== change.id);
+      }
+      return acc;
+    }, edges));
+  }, [edges, setEdges]);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges],
+    (params: Connection) => setEdges([...edges, { ...params, id: `${params.source}-${params.target}` }]),
+    [edges, setEdges],
   );
 
   const addNode = useCallback((type: string, nodeData: any) => {
@@ -73,8 +91,8 @@ export const WorkflowEditor = () => {
       position: { x: Math.random() * 300, y: Math.random() * 300 },
       data: nodeData,
     };
-    setNodes((nds) => [...nds, newNode]);
-  }, [setNodes]);
+    setNodes([...nodes, newNode]);
+  }, [nodes, setNodes]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
