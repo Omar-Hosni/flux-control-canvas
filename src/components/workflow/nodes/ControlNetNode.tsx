@@ -1,9 +1,10 @@
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Zap, Users, Layers, Eye } from 'lucide-react';
+import { useWorkflowStore } from '@/stores/workflowStore';
 
 interface ControlNetNodeProps {
   id: string;
@@ -34,6 +35,30 @@ const getPreprocessorColor = (preprocessor: string) => {
 };
 
 export const ControlNetNode = memo(({ id, data }: ControlNetNodeProps) => {
+  const { edges, nodes, workflowExecutor, getProcessedImage } = useWorkflowStore();
+
+  // Auto-preprocess when image input is connected
+  useEffect(() => {
+    const connectedImageInputs = edges.filter(edge => 
+      edge.target === id && 
+      nodes.find(n => n.id === edge.source)?.type === 'imageInput'
+    );
+
+    if (connectedImageInputs.length > 0 && workflowExecutor) {
+      const sourceNodeId = connectedImageInputs[0].source;
+      const existingPreprocessed = getProcessedImage(id);
+      
+      // Only preprocess if we don't already have a result for this node
+      if (!existingPreprocessed) {
+        const sourceImage = getProcessedImage(sourceNodeId);
+        if (sourceImage) {
+          // Trigger preprocessing automatically
+          workflowExecutor.executeWorkflow(nodes, edges, id);
+        }
+      }
+    }
+  }, [edges, nodes, id, workflowExecutor, getProcessedImage]);
+
   return (
     <Card className="min-w-48 p-4 bg-ai-surface border-border shadow-card">
       <div className="flex items-center gap-2 mb-3">

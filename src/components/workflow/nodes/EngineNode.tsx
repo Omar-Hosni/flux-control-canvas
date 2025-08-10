@@ -32,12 +32,13 @@ export const EngineNode = memo(({ id, data }: EngineNodeProps) => {
   const { updateNodeData, executeWorkflow, isGenerating } = useWorkflowStore();
 
   const handleGenerate = async () => {
-    // Find output node connected to this engine
+    // Find ALL output nodes connected to this engine
     const { edges } = useWorkflowStore.getState();
-    const connectedOutput = edges.find(edge => edge.source === id && edge.target.includes('output'));
+    const connectedOutputs = edges.filter(edge => edge.source === id && edge.target.includes('output'));
     
-    if (connectedOutput) {
-      await executeWorkflow(connectedOutput.target);
+    // Execute workflow for each connected output node
+    for (const outputEdge of connectedOutputs) {
+      await executeWorkflow(outputEdge.target);
     }
   };
 

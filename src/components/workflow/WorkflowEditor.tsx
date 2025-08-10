@@ -23,6 +23,7 @@ import { ControlNetNode } from './nodes/ControlNetNode';
 import { RerenderingNode } from './nodes/RerenderingNode';
 import { ToolNode } from './nodes/ToolNode';
 import { EngineNode } from './nodes/EngineNode';
+import { GearNode } from './nodes/GearNode';
 import { OutputNode } from './nodes/OutputNode';
 import { WorkflowToolbar } from './WorkflowToolbar';
 import { useWorkflowStore } from '../../stores/workflowStore';
@@ -35,6 +36,7 @@ const nodeTypes: NodeTypes = {
   rerendering: RerenderingNode,
   tool: ToolNode,
   engine: EngineNode,
+  gear: GearNode,
   output: OutputNode,
 };
 

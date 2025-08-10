@@ -20,7 +20,8 @@ import {
   Play,
   Cpu,
   ArrowLeft,
-  Home
+  Home,
+  Settings
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -70,6 +71,7 @@ export const WorkflowToolbar = ({ onAddNode }: WorkflowToolbarProps) => {
       title: 'Engine',
       nodes: [
         { type: 'engine', label: 'Engine', icon: Cpu, data: { label: 'Generation Engine', model: 'runware:101@1', width: 1024, height: 1024, steps: 28, cfgScale: 3.5, strength: 0.8 } },
+        { type: 'gear', label: 'Gear', icon: Settings, data: { label: 'LoRA Gear', loraModel: 'runware:25@1', weight: 1.0 } },
       ]
     }
   ];

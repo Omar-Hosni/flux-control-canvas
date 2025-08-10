@@ -68,6 +68,9 @@ export class WorkflowExecutor {
       case 'engine':
         result = await this.processEngine(node, inputs);
         break;
+      case 'gear':
+        result = await this.processGear(node, inputs);
+        break;
       case 'output':
         result = await this.processOutput(node, inputs);
         break;
@@ -230,7 +233,9 @@ export class WorkflowExecutor {
   }
 
   private async processEngine(node: Node, inputs: Record<string, string>): Promise<string | null> {
-    const nodeMap = new Map(Object.keys(inputs).map(nodeId => [nodeId, useWorkflowStore.getState().nodes.find(n => n.id === nodeId)]));
+    const allNodes = useWorkflowStore.getState().nodes;
+    const allEdges = useWorkflowStore.getState().edges;
+    const nodeMap = new Map(Object.keys(inputs).map(nodeId => [nodeId, allNodes.find(n => n.id === nodeId)]));
     const inputImages = Object.values(inputs).filter(input => input.startsWith('http'));
     const textInputs = Object.values(inputs).filter(input => !input.startsWith('http'));
     
@@ -259,6 +264,12 @@ export class WorkflowExecutor {
       return sourceNode?.type === 'imageInput';
     });
 
+    // Get connected gear nodes for LoRAs
+    const connectedGearEdges = allEdges.filter(edge => edge.target === node.id);
+    const gearNodes = connectedGearEdges
+      .map(edge => allNodes.find(n => n.id === edge.source))
+      .filter(n => n?.type === 'gear');
+
     const prompt = textInputs[0] || 'generate an image';
     
     // Build generation parameters
@@ -271,9 +282,19 @@ export class WorkflowExecutor {
       CFGScale: (node.data.cfgScale as number) || 3.5,
     };
 
-    // Add LoRA if specified
+    // Add LoRAs from connected gear nodes
+    const loras = gearNodes.map(gearNode => ({
+      model: gearNode!.data.loraModel as string,
+      weight: (gearNode!.data.weight as number) || 1.0
+    }));
+    
+    if (loras.length > 0) {
+      params.lora = loras;
+    }
+
+    // Legacy LoRA support for backward compatibility
     if (node.data.loras && Array.isArray(node.data.loras) && node.data.loras.length > 0) {
-      params.lora = node.data.loras;
+      params.lora = [...(params.lora || []), ...node.data.loras];
     }
 
     // Add ControlNet if available
@@ -316,6 +337,12 @@ export class WorkflowExecutor {
       console.error('Engine processing failed:', error);
       return null;
     }
+  }
+
+  private async processGear(node: Node, inputs: Record<string, string>): Promise<string | null> {
+    // Gear nodes don't process images, they just provide LoRA configuration
+    // Return a placeholder that indicates this gear is configured
+    return `gear:${node.data.loraModel}:${node.data.weight}`;
   }
 
   private async processOutput(node: Node, inputs: Record<string, string>): Promise<string | null> {
