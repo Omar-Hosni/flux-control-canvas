@@ -18,7 +18,7 @@ import '@xyflow/react/dist/style.css';
 import { TextInputNode } from './nodes/TextInputNode';
 import { ImageInputNode } from './nodes/ImageInputNode';
 import { ControlNetNode } from './nodes/ControlNetNode';
-import { ProcessingNode } from './nodes/ProcessingNode';
+import { RerenderingNode } from './nodes/RerenderingNode';
 import { ToolNode } from './nodes/ToolNode';
 import { EngineNode } from './nodes/EngineNode';
 import { OutputNode } from './nodes/OutputNode';
@@ -30,7 +30,7 @@ const nodeTypes: NodeTypes = {
   textInput: TextInputNode,
   imageInput: ImageInputNode,
   controlNet: ControlNetNode,
-  processing: ProcessingNode,
+  rerendering: RerenderingNode,
   tool: ToolNode,
   engine: EngineNode,
   output: OutputNode,

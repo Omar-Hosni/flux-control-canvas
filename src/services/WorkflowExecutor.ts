@@ -59,7 +59,7 @@ export class WorkflowExecutor {
       case 'controlNet':
         result = await this.processControlNet(node, inputs);
         break;
-      case 'processing':
+      case 'rerendering':
         result = await this.processGeneration(node, inputs);
         break;
       case 'tool':
@@ -85,8 +85,11 @@ export class WorkflowExecutor {
 
   private async processImageInput(node: Node): Promise<string | null> {
     if (node.data.imageFile) {
-      // Upload the image file and return the URL
-      return await this.runwareService.uploadImage(node.data.imageFile as File);
+      // Upload the image file to Runware and persist it for later use
+      const uploadedUrl = await this.runwareService.uploadImageForURL(node.data.imageFile as File);
+      // Update node data with the uploaded URL for persistence
+      useWorkflowStore.getState().updateNodeData(node.id, { imageUrl: uploadedUrl });
+      return uploadedUrl;
     }
     return (node.data.imageUrl as string) || null;
   }
@@ -227,12 +230,33 @@ export class WorkflowExecutor {
   }
 
   private async processEngine(node: Node, inputs: Record<string, string>): Promise<string | null> {
+    const nodeMap = new Map(Object.keys(inputs).map(nodeId => [nodeId, useWorkflowStore.getState().nodes.find(n => n.id === nodeId)]));
     const inputImages = Object.values(inputs).filter(input => input.startsWith('http'));
     const textInputs = Object.values(inputs).filter(input => !input.startsWith('http'));
+    
+    // Categorize images based on source node types
     const controlNetImages = inputImages.filter(imageUrl => {
-      // Check if this image came from a ControlNet node
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
-      return sourceNodeId ? sourceNodeId.includes('controlNet') : false;
+      const sourceNode = sourceNodeId ? nodeMap.get(sourceNodeId) : null;
+      return sourceNode?.type === 'controlNet';
+    });
+    
+    const toolImages = inputImages.filter(imageUrl => {
+      const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
+      const sourceNode = sourceNodeId ? nodeMap.get(sourceNodeId) : null;
+      return sourceNode?.type === 'tool';
+    });
+    
+    const rerenderingImages = inputImages.filter(imageUrl => {
+      const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
+      const sourceNode = sourceNodeId ? nodeMap.get(sourceNodeId) : null;
+      return sourceNode?.type === 'rerendering';
+    });
+    
+    const seedImages = inputImages.filter(imageUrl => {
+      const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
+      const sourceNode = sourceNodeId ? nodeMap.get(sourceNodeId) : null;
+      return sourceNode?.type === 'imageInput';
     });
 
     const prompt = textInputs[0] || 'generate an image';
@@ -264,9 +288,24 @@ export class WorkflowExecutor {
       }));
     }
 
-    // Add seed image if available
-    if (inputImages.length > 0 && !controlNetImages.includes(inputImages[0])) {
-      params.inputImage = inputImages[0];
+    // Add IP adapters for rerendering images
+    if (rerenderingImages.length > 0) {
+      params.ipAdapters = rerenderingImages.map((imageUrl, index) => ({
+        model: 'runware:105@1',
+        guideImage: imageUrl,
+        weight: 1.0
+      }));
+    }
+
+    // Add seed image from image input nodes
+    if (seedImages.length > 0) {
+      params.seedImage = seedImages[0];
+      params.strength = (node.data.strength as number) || 0.8;
+    }
+
+    // Add processed tool images as seed images if no other seed image
+    if (toolImages.length > 0 && !seedImages.length) {
+      params.seedImage = toolImages[0];
       params.strength = (node.data.strength as number) || 0.8;
     }
 

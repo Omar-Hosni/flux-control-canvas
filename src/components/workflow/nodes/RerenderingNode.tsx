@@ -9,11 +9,11 @@ import { Slider } from '@/components/ui/slider';
 import { RotateCcw, Palette, Camera, Shuffle, Play } from 'lucide-react';
 import { useWorkflowStore } from '@/stores/workflowStore';
 
-interface ProcessingNodeProps {
+interface RerenderingNodeProps {
   id: string;
   data: {
     label: string;
-    processingType: 'reimagine' | 'reference' | 'rescene' | 'reangle' | 'remix';
+    rerenderingType: 'reimagine' | 'reference' | 'rescene' | 'reangle' | 'remix';
     creativity?: number;
     referenceType?: string;
     degrees?: number;
@@ -46,7 +46,7 @@ const getProcessingColor = (type: string) => {
   }
 };
 
-export const ProcessingNode = memo(({ id, data }: ProcessingNodeProps) => {
+export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
   const { updateNodeData } = useWorkflowStore();
 
   const renderSettings = () => {
@@ -93,7 +93,7 @@ export const ProcessingNode = memo(({ id, data }: ProcessingNodeProps) => {
       </div>
     );
 
-    switch (data.processingType) {
+    switch (data.rerenderingType) {
       case 'reimagine':
         return (
           <div className="space-y-3">
@@ -210,15 +210,15 @@ export const ProcessingNode = memo(({ id, data }: ProcessingNodeProps) => {
   return (
     <Card className="min-w-48 p-4 bg-ai-surface border-border shadow-card">
       <div className="flex items-center gap-2 mb-3">
-        <div className={`p-1.5 rounded bg-gradient-to-br ${getProcessingColor(data.processingType)}`}>
-          {getProcessingIcon(data.processingType)}
+        <div className={`p-1.5 rounded bg-gradient-to-br ${getProcessingColor(data.rerenderingType)}`}>
+          {getProcessingIcon(data.rerenderingType)}
         </div>
         <h3 className="text-sm font-medium text-foreground">{data.label}</h3>
       </div>
 
       <div className="space-y-3">
         <Badge variant="secondary" className="text-xs">
-          {data.model === 'flux-kontext-pro' ? 'Flux Kontext Pro' : data.model === 'flux-kontext' ? 'Flux Kontext' : 'Processing'}
+          {data.model === 'flux-kontext-pro' ? 'Flux Kontext Pro' : data.model === 'flux-kontext' ? 'Flux Kontext' : 'Re-rendering'}
         </Badge>
         
         {renderSettings()}
@@ -238,4 +238,4 @@ export const ProcessingNode = memo(({ id, data }: ProcessingNodeProps) => {
   );
 });
 
-ProcessingNode.displayName = 'ProcessingNode';
+RerenderingNode.displayName = 'RerenderingNode';

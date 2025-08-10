@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Type } from 'lucide-react';
+import { useWorkflowStore } from '@/stores/workflowStore';
 
 interface TextInputNodeProps {
   id: string;
@@ -15,6 +16,12 @@ interface TextInputNodeProps {
 
 export const TextInputNode = memo(({ id, data }: TextInputNodeProps) => {
   const [prompt, setPrompt] = useState(data.prompt || '');
+  const { updateNodeData } = useWorkflowStore();
+
+  const handlePromptChange = (value: string) => {
+    setPrompt(value);
+    updateNodeData(id, { prompt: value });
+  };
 
   return (
     <Card className="min-w-64 p-4 bg-ai-surface border-border shadow-card">
@@ -27,13 +34,13 @@ export const TextInputNode = memo(({ id, data }: TextInputNodeProps) => {
       
       <div className="space-y-2">
         <Label htmlFor={`prompt-${id}`} className="text-xs text-muted-foreground">
-          Text Prompt
+          Positive Prompt
         </Label>
         <Textarea
           id={`prompt-${id}`}
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter your prompt..."
+          onChange={(e) => handlePromptChange(e.target.value)}
+          placeholder="Enter your positive prompt..."
           className="min-h-20 text-sm nodrag"
           rows={3}
         />

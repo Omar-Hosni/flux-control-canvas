@@ -48,13 +48,13 @@ export const WorkflowToolbar = ({ onAddNode }: WorkflowToolbarProps) => {
       ]
     },
     {
-      title: 'Processing',
+      title: 'Re-rendering',
       nodes: [
-        { type: 'processing', label: 'Re-imagine', icon: RotateCcw, data: { label: 'Re-imagine', processingType: 'reimagine', creativity: 0.8 } },
-        { type: 'processing', label: 'Reference', icon: Palette, data: { label: 'Reference', processingType: 'reference', referenceType: 'style' } },
-        { type: 'processing', label: 'Re-scene', icon: Camera, data: { label: 'Re-scene', processingType: 'rescene' } },
-        { type: 'processing', label: 'Re-angle', icon: RotateCcw, data: { label: 'Re-angle', processingType: 'reangle', degrees: 15, direction: 'right' } },
-        { type: 'processing', label: 'Re-mix', icon: Shuffle, data: { label: 'Re-mix', processingType: 'remix' } },
+        { type: 'rerendering', label: 'Re-imagine', icon: RotateCcw, data: { label: 'Re-imagine', rerenderingType: 'reimagine', creativity: 0.8 } },
+        { type: 'rerendering', label: 'Reference', icon: Palette, data: { label: 'Reference', rerenderingType: 'reference', referenceType: 'style' } },
+        { type: 'rerendering', label: 'Re-scene', icon: Camera, data: { label: 'Re-scene', rerenderingType: 'rescene' } },
+        { type: 'rerendering', label: 'Re-angle', icon: RotateCcw, data: { label: 'Re-angle', rerenderingType: 'reangle', degrees: 15, direction: 'right' } },
+        { type: 'rerendering', label: 'Re-mix', icon: Shuffle, data: { label: 'Re-mix', rerenderingType: 'remix' } },
       ]
     },
     {
