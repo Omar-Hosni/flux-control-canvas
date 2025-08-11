@@ -40,6 +40,7 @@ export interface GenerateImageParams {
   }>;
   seedImage?: string;
   ipAdapters?: IpAdapter[];
+  referenceImages?: string[];
 }
 
 export interface FluxKontextParams {
@@ -362,7 +363,7 @@ export class RunwareService {
     const taskUUID = crypto.randomUUID();
     
     return new Promise((resolve, reject) => {
-      const message = [{
+      const message: any = [{
         taskType: "imageInference",
         taskUUID,
         model: params.model || "runware:100@1",
@@ -370,11 +371,6 @@ export class RunwareService {
         height: params.height || 1024,
         numberResults: params.numberResults || 1,
         outputFormat: params.outputFormat || "WEBP",
-        steps: params.steps || 4,
-        CFGScale: params.CFGScale || 1,
-        scheduler: params.scheduler || "FlowMatchEulerDiscreteScheduler",
-        strength: params.strength || 0.8,
-        lora: params.lora || [],
         includeCost: true,
         outputType: ["URL"],
         positivePrompt: params.positivePrompt,
@@ -383,8 +379,38 @@ export class RunwareService {
         ...(params.controlNet && { controlNet: params.controlNet }),
         ...(params.seedImage && { seedImage: params.seedImage }),
         ...(params.strength && { strength: params.strength }),
-        ...(params.ipAdapters && { ipAdapters: params.ipAdapters })
+        ...(params.ipAdapters && { ipAdapters: params.ipAdapters }),
+        ...(params.referenceImages && { referenceImages: params.referenceImages })
       }];
+
+      // Only add these parameters if they exist in the original params
+      if (params.steps !== undefined) {
+        message[0].steps = params.steps;
+      } else if (!params.referenceImages) {
+        // Default steps for non-Flux Kontext models
+        message[0].steps = 4;
+      }
+
+      if (params.CFGScale !== undefined) {
+        message[0].CFGScale = params.CFGScale;
+      } else if (!params.referenceImages) {
+        // Default CFGScale for non-Flux Kontext models
+        message[0].CFGScale = 1;
+      }
+
+      if (params.scheduler !== undefined) {
+        message[0].scheduler = params.scheduler;
+      } else if (!params.referenceImages) {
+        // Default scheduler for non-Flux Kontext models
+        message[0].scheduler = "FlowMatchEulerDiscreteScheduler";
+      }
+
+      if (params.lora !== undefined) {
+        message[0].lora = params.lora;
+      } else if (!params.referenceImages) {
+        // Default empty lora array for non-Flux Kontext models
+        message[0].lora = [];
+      }
 
       console.log("Sending image generation message:", message);
 
