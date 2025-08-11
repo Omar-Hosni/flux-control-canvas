@@ -280,70 +280,89 @@ export class WorkflowExecutor {
     const modelValue = (node.data.model as string) || 'runware:101@1';
     const isFluxKontext = modelValue === 'runware:502@1';
     
-    // Build generation parameters
+    // Handle Flux Kontext differently - only specific parameters allowed
+    if (isFluxKontext) {
+      const params: any = {
+        positivePrompt: prompt,
+        model: 'bfl:3@1',
+        width: (node.data.width as number) || 1024,
+        height: (node.data.height as number) || 1024,
+        numberResults: 1,
+        outputFormat: 'JPEG',
+        includeCost: true,
+        outputType: ['URL']
+      };
+
+      // Add reference images if available
+      if (seedImages.length > 0) {
+        params.referenceImages = seedImages;
+      }
+
+      try {
+        const result = await this.runwareService.generateImage(params);
+        return result.imageURL;
+      } catch (error) {
+        console.error('Flux Kontext generation failed:', error);
+        return null;
+      }
+    }
+    
+    // Standard handling for other models
     const params: any = {
       positivePrompt: prompt,
-      model: isFluxKontext ? 'bfl:3@1' : modelValue,
+      model: modelValue,
       width: (node.data.width as number) || 1024,
       height: (node.data.height as number) || 1024,
       steps: (node.data.steps as number) || 28,
       CFGScale: (node.data.cfgScale as number) || 3.5,
     };
 
-    // Handle Flux Kontext differently - use referenceImages instead of seedImage
-    if (isFluxKontext && seedImages.length > 0) {
-      params.referenceImages = seedImages;
-      // Don't add strength for Flux Kontext
-    } else {
-      // Standard handling for other models
-      
-      // Add LoRAs from connected gear nodes
-      const loras = gearNodes.map(gearNode => ({
-        model: gearNode!.data.loraModel as string,
-        weight: (gearNode!.data.weight as number) || 1.0
+    // Add LoRAs from connected gear nodes
+    const loras = gearNodes.map(gearNode => ({
+      model: gearNode!.data.loraModel as string,
+      weight: (gearNode!.data.weight as number) || 1.0
+    }));
+    
+    if (loras.length > 0) {
+      params.lora = loras;
+    }
+
+    // Legacy LoRA support for backward compatibility
+    if (node.data.loras && Array.isArray(node.data.loras) && node.data.loras.length > 0) {
+      params.lora = [...(params.lora || []), ...node.data.loras];
+    }
+
+    // Add ControlNet if available
+    if (controlNetImages.length > 0) {
+      params.controlNet = controlNetImages.map((imageUrl, index) => ({
+        model: 'runware:29@1',
+        guideImage: imageUrl,
+        weight: 1,
+        startStep: 1,
+        endStep: Math.max(1, (params.steps || 28) - 1),
+        controlMode: 'balanced'
       }));
-      
-      if (loras.length > 0) {
-        params.lora = loras;
-      }
+    }
 
-      // Legacy LoRA support for backward compatibility
-      if (node.data.loras && Array.isArray(node.data.loras) && node.data.loras.length > 0) {
-        params.lora = [...(params.lora || []), ...node.data.loras];
-      }
+    // Add IP adapters for rerendering images
+    if (rerenderingImages.length > 0) {
+      params.ipAdapters = rerenderingImages.map((imageUrl, index) => ({
+        model: 'runware:105@1',
+        guideImage: imageUrl,
+        weight: 1.0
+      }));
+    }
 
-      // Add ControlNet if available
-      if (controlNetImages.length > 0) {
-        params.controlNet = controlNetImages.map((imageUrl, index) => ({
-          model: 'runware:29@1',
-          guideImage: imageUrl,
-          weight: 1,
-          startStep: 1,
-          endStep: Math.max(1, (params.steps || 28) - 1),
-          controlMode: 'balanced'
-        }));
-      }
+    // Add seed image from image input nodes
+    if (seedImages.length > 0) {
+      params.seedImage = seedImages[0];
+      params.strength = (node.data.strength as number) || 0.8;
+    }
 
-      // Add IP adapters for rerendering images
-      if (rerenderingImages.length > 0) {
-        params.ipAdapters = rerenderingImages.map((imageUrl, index) => ({
-          model: 'runware:105@1',
-          guideImage: imageUrl,
-          weight: 1.0
-        }));
-      }
-
-      // Add seed image from image input nodes
-      if (seedImages.length > 0) {
-        params.seedImage = seedImages[0];
-        params.strength = (node.data.strength as number) || 0.8;
-      }
-
-      // Add processed tool images as seed images if no other seed image
-      if (toolImages.length > 0 && !seedImages.length) {
-        params.seedImage = toolImages[0];
-        params.strength = (node.data.strength as number) || 0.8;
-      }
+    // Add processed tool images as seed images if no other seed image
+    if (toolImages.length > 0 && !seedImages.length) {
+      params.seedImage = toolImages[0];
+      params.strength = (node.data.strength as number) || 0.8;
     }
 
     try {
