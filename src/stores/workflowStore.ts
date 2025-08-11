@@ -51,11 +51,14 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   })),
   
   executeWorkflow: async (targetNodeId) => {
-    const { workflowExecutor, nodes, edges } = get();
+    const { workflowExecutor, nodes, edges, processedImages } = get();
     if (!workflowExecutor) return;
     
     set({ isGenerating: true });
     try {
+      // Clear any cached results for this execution to ensure fresh generation
+      workflowExecutor.clearProcessedImages();
+      
       const result = await workflowExecutor.executeWorkflow(nodes, edges, targetNodeId);
       if (result) {
         // Update the target node with the result

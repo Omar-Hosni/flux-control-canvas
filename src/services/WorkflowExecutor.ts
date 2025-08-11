@@ -10,6 +10,10 @@ export class WorkflowExecutor {
     this.runwareService = runwareService;
   }
 
+  clearProcessedImages() {
+    this.processedImages.clear();
+  }
+
   async executeWorkflow(nodes: Node[], edges: Edge[], targetNodeId: string): Promise<string | null> {
     const nodeMap = new Map(nodes.map(node => [node.id, node]));
     const edgeMap = new Map<string, Edge[]>();
@@ -272,62 +276,74 @@ export class WorkflowExecutor {
 
     const prompt = textInputs[0] || 'generate an image';
     
+    // Determine if this is Flux Kontext model
+    const modelValue = (node.data.model as string) || 'runware:101@1';
+    const isFluxKontext = modelValue === 'runware:502@1';
+    
     // Build generation parameters
     const params: any = {
       positivePrompt: prompt,
-      model: (node.data.model as string) || 'runware:101@1',
+      model: isFluxKontext ? 'bfl:3@1' : modelValue,
       width: (node.data.width as number) || 1024,
       height: (node.data.height as number) || 1024,
       steps: (node.data.steps as number) || 28,
       CFGScale: (node.data.cfgScale as number) || 3.5,
     };
 
-    // Add LoRAs from connected gear nodes
-    const loras = gearNodes.map(gearNode => ({
-      model: gearNode!.data.loraModel as string,
-      weight: (gearNode!.data.weight as number) || 1.0
-    }));
-    
-    if (loras.length > 0) {
-      params.lora = loras;
-    }
-
-    // Legacy LoRA support for backward compatibility
-    if (node.data.loras && Array.isArray(node.data.loras) && node.data.loras.length > 0) {
-      params.lora = [...(params.lora || []), ...node.data.loras];
-    }
-
-    // Add ControlNet if available
-    if (controlNetImages.length > 0) {
-      params.controlNet = controlNetImages.map((imageUrl, index) => ({
-        model: 'runware:29@1',
-        guideImage: imageUrl,
-        weight: 1,
-        startStep: 1,
-        endStep: Math.max(1, (params.steps || 28) - 1),
-        controlMode: 'balanced'
+    // Handle Flux Kontext differently - use referenceImages instead of seedImage
+    if (isFluxKontext && seedImages.length > 0) {
+      params.referenceImages = seedImages;
+      // Don't add strength for Flux Kontext
+    } else {
+      // Standard handling for other models
+      
+      // Add LoRAs from connected gear nodes
+      const loras = gearNodes.map(gearNode => ({
+        model: gearNode!.data.loraModel as string,
+        weight: (gearNode!.data.weight as number) || 1.0
       }));
-    }
+      
+      if (loras.length > 0) {
+        params.lora = loras;
+      }
 
-    // Add IP adapters for rerendering images
-    if (rerenderingImages.length > 0) {
-      params.ipAdapters = rerenderingImages.map((imageUrl, index) => ({
-        model: 'runware:105@1',
-        guideImage: imageUrl,
-        weight: 1.0
-      }));
-    }
+      // Legacy LoRA support for backward compatibility
+      if (node.data.loras && Array.isArray(node.data.loras) && node.data.loras.length > 0) {
+        params.lora = [...(params.lora || []), ...node.data.loras];
+      }
 
-    // Add seed image from image input nodes
-    if (seedImages.length > 0) {
-      params.seedImage = seedImages[0];
-      params.strength = (node.data.strength as number) || 0.8;
-    }
+      // Add ControlNet if available
+      if (controlNetImages.length > 0) {
+        params.controlNet = controlNetImages.map((imageUrl, index) => ({
+          model: 'runware:29@1',
+          guideImage: imageUrl,
+          weight: 1,
+          startStep: 1,
+          endStep: Math.max(1, (params.steps || 28) - 1),
+          controlMode: 'balanced'
+        }));
+      }
 
-    // Add processed tool images as seed images if no other seed image
-    if (toolImages.length > 0 && !seedImages.length) {
-      params.seedImage = toolImages[0];
-      params.strength = (node.data.strength as number) || 0.8;
+      // Add IP adapters for rerendering images
+      if (rerenderingImages.length > 0) {
+        params.ipAdapters = rerenderingImages.map((imageUrl, index) => ({
+          model: 'runware:105@1',
+          guideImage: imageUrl,
+          weight: 1.0
+        }));
+      }
+
+      // Add seed image from image input nodes
+      if (seedImages.length > 0) {
+        params.seedImage = seedImages[0];
+        params.strength = (node.data.strength as number) || 0.8;
+      }
+
+      // Add processed tool images as seed images if no other seed image
+      if (toolImages.length > 0 && !seedImages.length) {
+        params.seedImage = toolImages[0];
+        params.strength = (node.data.strength as number) || 0.8;
+      }
     }
 
     try {
