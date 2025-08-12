@@ -151,15 +151,59 @@ export class WorkflowExecutor {
 
         case 'reference':
           if (inputImages.length === 0) return null;
-          const referencePrompt = `Apply ${(node.data.referenceType as string) || 'style'} reference: ${prompt}`;
-          const refResult = await this.runwareService.generateReference(
-            inputImages[0], 
-            referencePrompt, 
-            (node.data.referenceType as string) || 'style',
-            useFluxKontextPro,
-            sizeRatio as string
-          );
-          return refResult.imageURL;
+          
+          // Step 1: Standard generation
+          const firstGenParams: any = {
+            positivePrompt: prompt || 'generate an image',
+            model: 'runware:101@1',
+            width: 1152,
+            height: 896,
+            steps: 28,
+            CFGScale: 3.5,
+            numberResults: 1,
+            outputFormat: 'JPEG',
+            includeCost: true,
+            outputType: ['URL']
+          };
+          
+          const firstResult = await this.runwareService.generateImage(firstGenParams);
+          if (!firstResult.imageURL) return null;
+          
+          // Step 2: Flux Kontext generation with first output + reference image
+          const referenceType = (node.data.referenceType as string) || 'style';
+          let secondPrompt = '';
+          
+          switch (referenceType) {
+            case 'style':
+              secondPrompt = 'Blend the style of this image with that image';
+              break;
+            case 'product':
+              secondPrompt = 'Use the first output image as the background for this product image';
+              break;
+            case 'character':
+              secondPrompt = 'Make the character\'s face/body match this output image';
+              break;
+            case 'composition':
+              secondPrompt = 'Adapt the design to the first output image and blend it with the input image connected to the reference node';
+              break;
+            default:
+              secondPrompt = 'Blend the style of this image with that image';
+          }
+          
+          const secondGenParams: any = {
+            positivePrompt: secondPrompt,
+            model: 'bfl:3@1', // Flux Kontext
+            width: 1152,
+            height: 896,
+            numberResults: 1,
+            outputFormat: 'JPEG',
+            includeCost: true,
+            outputType: ['URL'],
+            referenceImages: [firstResult.imageURL, inputImages[0]]
+          };
+          
+          const finalResult = await this.runwareService.generateImage(secondGenParams);
+          return finalResult.imageURL;
 
         case 'rescene':
           if (inputImages.length < 2) return null;
