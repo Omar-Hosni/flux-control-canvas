@@ -130,14 +130,24 @@ export class WorkflowExecutor {
       switch (rerenderingType) {
         case 'reimagine':
           if (inputImages.length === 0) return null;
-          const result = await this.runwareService.generateReImagine(
-            inputImages[0],
-            prompt || 'reimagine this image',
-            useFluxKontextPro,
-            sizeRatio as string,
-            creativity as number
-          );
-          return result.imageURL;
+          // Re-imagine uses standard generation with seed image, not Flux Kontext Pro
+          const reimagineParams: any = {
+            positivePrompt: prompt || 'reimagine this image',
+            model: 'runware:101@1', // Use standard Flux Dev model
+            seedImage: inputImages[0],
+            strength: (creativity as number) || 0.8,
+            width: 1024,
+            height: 1024,
+            steps: 28,
+            CFGScale: 3.5,
+            numberResults: 1,
+            outputFormat: 'JPEG',
+            includeCost: true,
+            outputType: ['URL']
+          };
+          
+          const reimagineResult = await this.runwareService.generateImage(reimagineParams);
+          return reimagineResult.imageURL;
 
         case 'reference':
           if (inputImages.length === 0) return null;
