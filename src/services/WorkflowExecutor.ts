@@ -178,13 +178,13 @@ export class WorkflowExecutor {
               secondPrompt = 'Blend the style of this image with that image';
               break;
             case 'product':
-              secondPrompt = 'Use the first output image as the background for this product image';
+              secondPrompt = 'Use the first output image as the background for this product image.';
               break;
             case 'character':
-              secondPrompt = 'Make the character\'s face/body match this output image';
+              secondPrompt = 'Make the character\'s face/body match this output image,';
               break;
             case 'composition':
-              secondPrompt = 'Adapt the design to the first output image and blend it with the input image connected to the reference node';
+              secondPrompt = 'Adapt the design to the first output image and blend it with the input image connected to the reference node.';
               break;
             default:
               secondPrompt = 'Blend the style of this image with that image';
