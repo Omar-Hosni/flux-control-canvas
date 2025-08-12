@@ -164,9 +164,22 @@ export class WorkflowExecutor {
         case 'reference':
           if (inputImages.length === 0) return null;
           
+          // Get prompt from engine node that will use this reference output
+          const engineEdges = allEdges.filter(edge => edge.source === node.id);
+          const engineNodes = engineEdges.map(edge => allNodes.find(n => n.id === edge.target && n.type === 'engine')).filter(Boolean);
+          let enginePrompt = 'generate an image';
+          
+          if (engineNodes.length > 0) {
+            const engineNode = engineNodes[0]!;
+            const engineConnectedEdges = allEdges.filter(edge => edge.target === engineNode.id);
+            const engineConnectedNodes = engineConnectedEdges.map(edge => allNodes.find(n => n.id === edge.source)).filter(Boolean);
+            const engineTextInputNodes = engineConnectedNodes.filter(n => n?.type === 'textInput');
+            enginePrompt = engineTextInputNodes.length > 0 ? (engineTextInputNodes[0]!.data.prompt as string) || 'generate an image' : 'generate an image';
+          }
+          
           // Step 1: Standard generation
           const firstGenParams: any = {
-            positivePrompt: prompt || 'generate an image',
+            positivePrompt: enginePrompt,
             model: 'runware:101@1',
             width: 1152,
             height: 896,
