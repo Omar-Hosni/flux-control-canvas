@@ -14,6 +14,7 @@ interface RerenderingNodeProps {
   data: {
     label: string;
     rerenderingType: 'reimagine' | 'reference' | 'rescene' | 'reangle' | 'remix';
+    strength?: number;
     creativity?: number;
     referenceType?: string;
     degrees?: number;
@@ -96,8 +97,24 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
     switch (data.rerenderingType) {
       case 'reimagine':
         return (
-          <div className="text-xs text-muted-foreground">
-            Uses input image as seed image for generation
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Strength</Label>
+              <Slider
+                value={[data.strength || 0.6]}
+                onValueChange={(value) => updateNodeData(id, { strength: value[0] })}
+                max={1}
+                min={0}
+                step={0.1}
+                className="w-full"
+              />
+              <span className="text-xs text-muted-foreground">
+                {((data.strength || 0.6) * 100).toFixed(0)}%
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Built-in prompt: "re-imagine image"
+            </div>
           </div>
         );
 

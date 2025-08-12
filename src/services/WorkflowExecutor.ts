@@ -120,7 +120,7 @@ export class WorkflowExecutor {
   }
 
   private async processGeneration(node: Node, inputs: Record<string, string>): Promise<string | null> {
-    const { rerenderingType, model, sizeRatio, creativity } = node.data;
+    const { rerenderingType, model, sizeRatio, creativity, strength } = node.data;
     const inputImages = Object.values(inputs).filter(input => input.startsWith('http'));
     const textInputs = Object.values(inputs).filter(input => !input.startsWith('http'));
     const prompt = textInputs[0] || '';
@@ -132,12 +132,12 @@ export class WorkflowExecutor {
           if (inputImages.length === 0) return null;
           // Re-imagine uses standard generation with seed image, not Flux Kontext Pro
           const reimagineParams: any = {
-            positivePrompt: prompt || 'reimagine this image',
+            positivePrompt: 're-imagine image',
             model: 'runware:101@1', // Use standard Flux Dev model
             seedImage: inputImages[0],
-            strength: (creativity as number) || 0.8,
-            width: 1024,
-            height: 1024,
+            strength: (strength as number) || 0.6,
+            width: 1152,
+            height: 896,
             steps: 28,
             CFGScale: 3.5,
             numberResults: 1,
