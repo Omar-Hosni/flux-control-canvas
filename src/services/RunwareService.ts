@@ -803,7 +803,7 @@ export class RunwareService {
   }
 
   // Re-imagine: transform uploaded image based on prompt
-  async generateReImagine(inputImage: string, prompt: string, useFluxKontextPro: boolean = false, sizeRatio?: string): Promise<GeneratedImage> {
+  async generateReImagine(inputImage: string, prompt: string, useFluxKontextPro: boolean = false, sizeRatio?: string, creativity?: number): Promise<GeneratedImage> {
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
         positivePrompt: prompt,

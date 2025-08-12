@@ -120,21 +120,22 @@ export class WorkflowExecutor {
   }
 
   private async processGeneration(node: Node, inputs: Record<string, string>): Promise<string | null> {
-    const { processingType, model, sizeRatio } = node.data;
+    const { rerenderingType, model, sizeRatio, creativity } = node.data;
     const inputImages = Object.values(inputs).filter(input => input.startsWith('http'));
     const textInputs = Object.values(inputs).filter(input => !input.startsWith('http'));
     const prompt = textInputs[0] || '';
     const useFluxKontextPro = model === 'flux-kontext-pro';
 
     try {
-      switch (processingType) {
+      switch (rerenderingType) {
         case 'reimagine':
           if (inputImages.length === 0) return null;
           const result = await this.runwareService.generateReImagine(
             inputImages[0],
             prompt || 'reimagine this image',
             useFluxKontextPro,
-            sizeRatio as string
+            sizeRatio as string,
+            creativity as number
           );
           return result.imageURL;
 
@@ -351,6 +352,12 @@ export class WorkflowExecutor {
         guideImage: imageUrl,
         weight: 1.0
       }));
+    }
+
+    // Add seed image from rerendering nodes that process images as seed
+    if (rerenderingImages.length > 0 && !seedImages.length) {
+      params.seedImage = rerenderingImages[0];
+      params.strength = (node.data.strength as number) || 0.8;
     }
 
     // Add seed image from image input nodes
