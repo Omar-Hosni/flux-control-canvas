@@ -124,12 +124,14 @@ export class WorkflowExecutor {
     
     // Get all nodes and identify input types properly
     const allNodes = useWorkflowStore.getState().nodes;
-    const nodeMap = new Map(Object.keys(inputs).map(nodeId => [nodeId, allNodes.find(n => n.id === nodeId)]));
+    const allEdges = useWorkflowStore.getState().edges;
     
-    // Get prompt from text input nodes
-    const textInputNodes = Object.keys(inputs)
-      .map(nodeId => nodeMap.get(nodeId))
-      .filter(n => n?.type === 'textInput');
+    // Get connected nodes to this rerendering node
+    const connectedEdges = allEdges.filter(edge => edge.target === node.id);
+    const connectedNodes = connectedEdges.map(edge => allNodes.find(n => n.id === edge.source)).filter(Boolean);
+    
+    // Get prompt from connected text input nodes
+    const textInputNodes = connectedNodes.filter(n => n?.type === 'textInput');
     const prompt = textInputNodes.length > 0 ? (textInputNodes[0]!.data.prompt as string) || '' : '';
     
     // Get input images by node type
@@ -319,42 +321,44 @@ export class WorkflowExecutor {
   private async processEngine(node: Node, inputs: Record<string, string>): Promise<string | null> {
     const allNodes = useWorkflowStore.getState().nodes;
     const allEdges = useWorkflowStore.getState().edges;
-    const nodeMap = new Map(Object.keys(inputs).map(nodeId => [nodeId, allNodes.find(n => n.id === nodeId)]));
-    const inputImages = Object.values(inputs).filter(input => input.startsWith('http'));
-    const textInputs = Object.values(inputs).filter(input => !input.startsWith('http'));
     
-    // Categorize images based on source node types
+    // Get connected nodes to this engine node
+    const connectedEdges = allEdges.filter(edge => edge.target === node.id);
+    const connectedNodes = connectedEdges.map(edge => allNodes.find(n => n.id === edge.source)).filter(Boolean);
+    
+    const inputImages = Object.values(inputs).filter(input => input.startsWith('http'));
+    
+    // Get prompt from connected text input nodes
+    const textInputNodes = connectedNodes.filter(n => n?.type === 'textInput');
+    const prompt = textInputNodes.length > 0 ? (textInputNodes[0]!.data.prompt as string) || 'generate an image' : 'generate an image';
+    
+    // Categorize images based on source node types using connected nodes
     const controlNetImages = inputImages.filter(imageUrl => {
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
-      const sourceNode = sourceNodeId ? nodeMap.get(sourceNodeId) : null;
+      const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
       return sourceNode?.type === 'controlNet';
     });
     
     const toolImages = inputImages.filter(imageUrl => {
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
-      const sourceNode = sourceNodeId ? nodeMap.get(sourceNodeId) : null;
+      const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
       return sourceNode?.type === 'tool';
     });
     
     const rerenderingImages = inputImages.filter(imageUrl => {
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
-      const sourceNode = sourceNodeId ? nodeMap.get(sourceNodeId) : null;
+      const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
       return sourceNode?.type === 'rerendering';
     });
     
     const seedImages = inputImages.filter(imageUrl => {
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
-      const sourceNode = sourceNodeId ? nodeMap.get(sourceNodeId) : null;
+      const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
       return sourceNode?.type === 'imageInput';
     });
 
     // Get connected gear nodes for LoRAs
-    const connectedGearEdges = allEdges.filter(edge => edge.target === node.id);
-    const gearNodes = connectedGearEdges
-      .map(edge => allNodes.find(n => n.id === edge.source))
-      .filter(n => n?.type === 'gear');
-
-    const prompt = textInputs[0] || 'generate an image';
+    const gearNodes = connectedNodes.filter(n => n?.type === 'gear');
     
     // Determine if this is Flux Kontext model
     const modelValue = (node.data.model as string) || 'runware:101@1';
