@@ -193,8 +193,8 @@ export class WorkflowExecutor {
           const secondGenParams: any = {
             positivePrompt: secondPrompt,
             model: 'bfl:3@1', // Flux Kontext
-            width: 1152,
-            height: 896,
+            width: 1024,
+            height: 1024,
             numberResults: 1,
             outputFormat: 'JPEG',
             includeCost: true,
