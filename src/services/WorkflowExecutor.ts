@@ -200,19 +200,19 @@ export class WorkflowExecutor {
           
           switch (referenceType) {
             case 'style':
-              secondPrompt = 'Blend the style of this image with that image';
+              secondPrompt = 'Blend the style of this first image with the second image';
               break;
             case 'product':
-              secondPrompt = 'Use the first output image as the background for this product image.';
+              secondPrompt = 'Use the first image as the background for the second image.';
               break;
             case 'character':
-              secondPrompt = 'Make the character\'s face/body match this output image,';
+              secondPrompt = "Make the person in the second image wear or use the item from first image and maintaing the face details";
               break;
             case 'composition':
-              secondPrompt = 'Adapt the design to the first output image and blend it with the input image connected to the reference node.';
+              secondPrompt = 'Adapt the design to the first image and blend it with the second image.';
               break;
             default:
-              secondPrompt = 'Blend the style of this image with that image';
+              secondPrompt = 'Blend the style of both images';
           }
           
           const secondGenParams: any = {
