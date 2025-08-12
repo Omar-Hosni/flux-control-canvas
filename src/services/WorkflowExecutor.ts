@@ -121,9 +121,19 @@ export class WorkflowExecutor {
 
   private async processGeneration(node: Node, inputs: Record<string, string>): Promise<string | null> {
     const { rerenderingType, model, sizeRatio, creativity, strength } = node.data;
+    
+    // Get all nodes and identify input types properly
+    const allNodes = useWorkflowStore.getState().nodes;
+    const nodeMap = new Map(Object.keys(inputs).map(nodeId => [nodeId, allNodes.find(n => n.id === nodeId)]));
+    
+    // Get prompt from text input nodes
+    const textInputNodes = Object.keys(inputs)
+      .map(nodeId => nodeMap.get(nodeId))
+      .filter(n => n?.type === 'textInput');
+    const prompt = textInputNodes.length > 0 ? (textInputNodes[0]!.data.prompt as string) || '' : '';
+    
+    // Get input images by node type
     const inputImages = Object.values(inputs).filter(input => input.startsWith('http'));
-    const textInputs = Object.values(inputs).filter(input => !input.startsWith('http'));
-    const prompt = textInputs[0] || '';
     const useFluxKontextPro = model === 'flux-kontext-pro';
 
     try {
@@ -228,11 +238,26 @@ export class WorkflowExecutor {
 
         case 'remix':
           if (inputImages.length === 0) return null;
-          const remixResult = await this.runwareService.generateReMix(
-            inputImages,
-            useFluxKontextPro,
-            sizeRatio as string
-          );
+          // Remix uses normal Flux Dev with IP adapters
+          const remixParams: any = {
+            positivePrompt: prompt || 'a sad girl',
+            model: 'runware:107@1', // Flux Dev model
+            width: 1024,
+            height: 1024,
+            steps: 28,
+            CFGScale: 3.5,
+            numberResults: 1,
+            outputFormat: 'JPEG',
+            includeCost: true,
+            outputType: ['URL'],
+            ipAdapters: inputImages.map(imageUrl => ({
+              model: 'runware:105@1',
+              guideImage: imageUrl,
+              weight: 1
+            }))
+          };
+          
+          const remixResult = await this.runwareService.generateImage(remixParams);
           return remixResult.imageURL;
 
         default:
