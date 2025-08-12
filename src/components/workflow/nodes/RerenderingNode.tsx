@@ -96,22 +96,8 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
     switch (data.rerenderingType) {
       case 'reimagine':
         return (
-          <div className="space-y-3">
-            {commonSettings}
-            <div>
-              <Label className="text-xs text-muted-foreground">Creativity</Label>
-              <Slider
-                value={[data.creativity || 0.8]}
-                onValueChange={(value) => updateNodeData(id, { creativity: value[0] })}
-                max={1}
-                min={0}
-                step={0.1}
-                className="w-full"
-              />
-              <span className="text-xs text-muted-foreground">
-                {((data.creativity || 0.8) * 100).toFixed(0)}%
-              </span>
-            </div>
+          <div className="text-xs text-muted-foreground">
+            Uses input image as seed image for generation
           </div>
         );
 
@@ -218,7 +204,7 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
 
       <div className="space-y-3">
         <Badge variant="secondary" className="text-xs">
-          {data.model === 'flux-kontext-pro' ? 'Flux Kontext Pro' : data.model === 'flux-kontext' ? 'Flux Kontext' : 'Re-rendering'}
+          {data.rerenderingType === 'reimagine' ? 'Seed Image' : data.model === 'flux-kontext-pro' ? 'Flux Kontext Pro' : data.model === 'flux-kontext' ? 'Flux Kontext' : 'Re-rendering'}
         </Badge>
         
         {renderSettings()}
