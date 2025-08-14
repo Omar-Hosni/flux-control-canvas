@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Brain, Zap, Settings, Workflow, Image as ImageIcon, Wand2, Palette, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
 import { 
   RunwareService, 
   type PreprocessedImage, 
@@ -71,6 +72,23 @@ const Index = () => {
   const [fluxKontextPro, setFluxKontextPro] = useState<boolean>(false);
   const [sizeRatio, setSizeRatio] = useState<string>("1:1");
   
+  // Flux Kontext LoRA states
+  interface FluxLoRA {
+    name: string;
+    model: string;
+    customModel?: string;
+    weight: number;
+  }
+  const [fluxSelectedLoras, setFluxSelectedLoras] = useState<FluxLoRA[]>([]);
+
+  const AVAILABLE_LORAS = [
+    { name: 'None', model: 'none', weight: 1 },
+    { name: 'Amateur Photography', model: 'civitai:652699@993999', weight: 1 },
+    { name: 'Detail Tweaker', model: 'civitai:58390@62833', weight: 1 },
+    { name: 'Realistic', model: 'civitai:796382@1026423', weight: 1 },
+    { name: 'Custom AIR Code', model: 'custom', weight: 1 },
+  ];
+  
   // Common states
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -92,6 +110,30 @@ const Index = () => {
       case 'remix': return 'Creatively blend and remix these images into a cohesive composition';
       default: return 'Transform this image';
     }
+  };
+
+  // Flux LoRA handlers
+  const handleFluxAddLora = () => {
+    if (fluxSelectedLoras.length < 4) { // Limit to 4 LoRAs
+      setFluxSelectedLoras([...fluxSelectedLoras, { name: 'Amateur Photography', model: 'civitai:652699@993999', weight: 1 }]);
+    }
+  };
+
+  const handleFluxRemoveLora = (index: number) => {
+    setFluxSelectedLoras(fluxSelectedLoras.filter((_, i) => i !== index));
+  };
+
+  const handleFluxLoraChange = (index: number, field: string, value: any) => {
+    const updatedLoras = [...fluxSelectedLoras];
+    if (field === 'model') {
+      const loraOption = AVAILABLE_LORAS.find(lora => lora.model === value);
+      if (loraOption) {
+        updatedLoras[index] = { ...updatedLoras[index], name: loraOption.name, model: value, customModel: '' };
+      }
+    } else {
+      updatedLoras[index] = { ...updatedLoras[index], [field]: value };
+    }
+    setFluxSelectedLoras(updatedLoras);
   };
 
   const handleApiKeySet = (key: string) => {
@@ -360,6 +402,15 @@ const Index = () => {
       // Use custom prompt if provided, otherwise use built-in prompts
       const finalPrompt = fluxPrompt.trim() || getBuiltInPrompt(transformationType);
 
+      // Build LoRA array for API
+      const loraArray = fluxSelectedLoras
+        .filter(lora => lora.model !== 'none') // Exclude "None" selections
+        .map(lora => ({
+          model: lora.model === 'custom' ? lora.customModel || '' : lora.model,
+          weight: lora.weight
+        }))
+        .filter(lora => lora.model.trim() !== ''); // Remove empty custom models
+
       switch (transformationType) {
         case 'reference':
         case 'reimagine':
@@ -372,14 +423,17 @@ const Index = () => {
               finalPrompt,
               referenceType,
               fluxKontextPro,
-              fluxKontextPro ? sizeRatio : undefined
+              fluxKontextPro ? sizeRatio : undefined,
+              loraArray.length > 0 ? loraArray : undefined
             );
           } else if (transformationType === 'reimagine') {
             result = await runwareService.generateReImagine(
               uploadedImageUrl,
               finalPrompt,
               fluxKontextPro,
-              fluxKontextPro ? sizeRatio : undefined
+              fluxKontextPro ? sizeRatio : undefined,
+              creativity,
+              loraArray.length > 0 ? loraArray : undefined
             );
           } else if (transformationType === 'reangle') {
             result = await runwareService.generateReAngle(
@@ -387,7 +441,8 @@ const Index = () => {
               15, // default degrees
               'right', // default direction
               fluxKontextPro,
-              fluxKontextPro ? sizeRatio : undefined
+              fluxKontextPro ? sizeRatio : undefined,
+              loraArray.length > 0 ? loraArray : undefined
             );
           }
           break;
@@ -406,7 +461,8 @@ const Index = () => {
             objectImageUrl,
             sceneImageUrl,
             fluxKontextPro,
-            fluxKontextPro ? sizeRatio : undefined
+            fluxKontextPro ? sizeRatio : undefined,
+            loraArray.length > 0 ? loraArray : undefined
           );
           break;
 
@@ -427,7 +483,8 @@ const Index = () => {
           result = await runwareService.generateReMix(
             uploadedImageUrls,
             fluxKontextPro,
-            fluxKontextPro ? sizeRatio : undefined
+            fluxKontextPro ? sizeRatio : undefined,
+            loraArray.length > 0 ? loraArray : undefined
           );
           break;
 
@@ -1368,6 +1425,83 @@ const Index = () => {
                        <p className="text-xs text-muted-foreground mt-1">
                          Built-in prompt: "{getBuiltInPrompt(fluxType)}"
                        </p>
+                     </div>
+
+                     {/* LoRA Selection */}
+                     <div className="space-y-3 p-4 bg-ai-surface-elevated rounded-lg border border-border">
+                       <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                           <Palette className="w-4 h-4 text-primary" />
+                           <Label className="text-sm font-medium">LoRA Models</Label>
+                         </div>
+                         <Button 
+                           variant="outline" 
+                           size="sm" 
+                           onClick={handleFluxAddLora}
+                           disabled={fluxSelectedLoras.length >= 4}
+                         >
+                           Add LoRA
+                         </Button>
+                       </div>
+                       
+                       {fluxSelectedLoras.length === 0 ? (
+                         <p className="text-xs text-muted-foreground">No LoRAs selected</p>
+                       ) : (
+                          <div className="space-y-3">
+                            {fluxSelectedLoras.map((lora, index) => (
+                              <div key={index} className="space-y-2">
+                                <div className="flex items-center gap-3 p-3 bg-ai-surface rounded border">
+                                  <div className="flex-1">
+                                    <Select 
+                                      value={lora.model} 
+                                      onValueChange={(value) => handleFluxLoraChange(index, 'model', value)}
+                                    >
+                                      <SelectTrigger className="h-8">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {AVAILABLE_LORAS.map((availableLora) => (
+                                          <SelectItem key={availableLora.model} value={availableLora.model}>
+                                            {availableLora.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="w-20">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="2"
+                                      step="0.1"
+                                      value={lora.weight}
+                                      onChange={(e) => handleFluxLoraChange(index, 'weight', parseFloat(e.target.value) || 1)}
+                                      className="h-8 text-center"
+                                    />
+                                  </div>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => handleFluxRemoveLora(index)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    ×
+                                  </Button>
+                                </div>
+                                {lora.model === 'custom' && (
+                                  <div className="px-3">
+                                    <Textarea
+                                      placeholder="Paste LoRA AIR code here (e.g., civitai:123@1)"
+                                      value={lora.customModel || ''}
+                                      onChange={(e) => handleFluxLoraChange(index, 'customModel', e.target.value)}
+                                      className="h-16 text-xs resize-none"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                       )}
                      </div>
                     
                     <Button
