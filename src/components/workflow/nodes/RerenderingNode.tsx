@@ -51,48 +51,6 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
   const { updateNodeData } = useWorkflowStore();
 
   const renderSettings = () => {
-    const commonSettings = (
-      <div className="space-y-2">
-        {/* Model Selection */}
-        <div>
-          <Label className="text-xs text-muted-foreground">Model</Label>
-          <Select
-            value={data.model || 'flux-kontext'}
-            onValueChange={(value) => updateNodeData(id, { model: value })}
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="flux-kontext">Flux Kontext</SelectItem>
-              <SelectItem value="flux-kontext-pro">Flux Kontext Pro</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Size Ratio for Flux Kontext Pro */}
-        {data.model === 'flux-kontext-pro' && (
-          <div>
-            <Label className="text-xs text-muted-foreground">Size Ratio</Label>
-            <Select
-              value={data.sizeRatio || '1:1'}
-              onValueChange={(value) => updateNodeData(id, { sizeRatio: value })}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1:1">1:1 (1024x1024)</SelectItem>
-                <SelectItem value="21:9">21:9 (1568x672)</SelectItem>
-                <SelectItem value="16:9">16:9 (1344x768)</SelectItem>
-                <SelectItem value="4:3">4:3 (1152x896)</SelectItem>
-                <SelectItem value="3:2">3:2 (1216x832)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
-    );
 
     switch (data.rerenderingType) {
       case 'reimagine':
@@ -121,7 +79,6 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
       case 'reference':
         return (
           <div className="space-y-3">
-            {commonSettings}
             <div>
               <Label className="text-xs text-muted-foreground">Reference Type</Label>
               <Select
@@ -145,7 +102,6 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
       case 'rescene':
         return (
           <div className="space-y-3">
-            {commonSettings}
             <div className="text-xs text-muted-foreground">
               Connect two images: object + scene
             </div>
@@ -155,7 +111,6 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
       case 'reangle':
         return (
           <div className="space-y-3">
-            {commonSettings}
             <div>
               <Label className="text-xs text-muted-foreground">Degrees</Label>
               <Select
@@ -198,7 +153,6 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
       case 'remix':
         return (
           <div className="space-y-3">
-            {commonSettings}
             <div className="text-xs text-muted-foreground">
               Connect multiple images for IP adapter remix
             </div>
@@ -221,7 +175,7 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
 
       <div className="space-y-3">
         <Badge variant="secondary" className="text-xs">
-          {data.rerenderingType === 'reimagine' ? 'Seed Image' : data.model === 'flux-kontext-pro' ? 'Flux Kontext Pro' : data.model === 'flux-kontext' ? 'Flux Kontext' : 'Re-rendering'}
+          {data.rerenderingType === 'reimagine' ? 'Seed Image' : 'Re-rendering'}
         </Badge>
         
         {renderSettings()}

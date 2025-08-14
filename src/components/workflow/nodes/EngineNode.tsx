@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Cpu, Play } from 'lucide-react';
 import { useWorkflowStore } from '@/stores/workflowStore';
 
@@ -13,6 +15,7 @@ interface EngineNodeProps {
   data: {
     label: string;
     model: string;
+    customModel?: string;
     loras: string[];
     width: number;
     height: number;
@@ -56,7 +59,7 @@ export const EngineNode = memo(({ id, data }: EngineNodeProps) => {
           <Label className="text-xs text-muted-foreground">Model</Label>
           <Select
             value={data.model}
-            onValueChange={(value) => updateNodeData(id, { model: value })}
+            onValueChange={(value) => updateNodeData(id, { model: value, customModel: '' })}
           >
             <SelectTrigger className="h-8 text-xs">
               <SelectValue />
@@ -67,9 +70,22 @@ export const EngineNode = memo(({ id, data }: EngineNodeProps) => {
                   {model.label}
                 </SelectItem>
               ))}
+              <SelectItem value="custom" className="text-xs">Custom AIR Code</SelectItem>
             </SelectContent>
           </Select>
         </div>
+
+        {data.model === 'custom' && (
+          <div>
+            <Label className="text-xs text-muted-foreground">AIR Code</Label>
+            <Textarea
+              placeholder="Paste AIR code here (e.g., runware:123@1)"
+              value={data.customModel || ''}
+              onChange={(e) => updateNodeData(id, { customModel: e.target.value })}
+              className="h-16 text-xs resize-none"
+            />
+          </div>
+        )}
 
         <Badge variant="secondary" className="text-xs">
           Generation Engine

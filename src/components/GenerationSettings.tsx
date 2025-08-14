@@ -22,6 +22,7 @@ interface GenerationSettingsProps {
 interface LoRA {
   name: string;
   model: string;
+  customModel?: string;
   weight: number;
 }
 
@@ -30,6 +31,7 @@ const AVAILABLE_LORAS = [
   { name: 'Amateur Photography', model: 'civitai:652699@993999', weight: 1 },
   { name: 'Detail Tweaker', model: 'civitai:58390@62833', weight: 1 },
   { name: 'Realistic', model: 'civitai:796382@1026423', weight: 1 },
+  { name: 'Custom AIR Code', model: 'custom', weight: 1 },
 ];
 
 export const GenerationSettings = ({
@@ -48,6 +50,7 @@ export const GenerationSettings = ({
   const [controlEndStep, setControlEndStep] = useState([27]);
   const [scheduler, setScheduler] = useState('FlowMatchEulerDiscreteScheduler');
   const [model, setModel] = useState('runware:101@1');
+  const [customModel, setCustomModel] = useState('');
   
   // LoRA settings
   const [selectedLoras, setSelectedLoras] = useState<LoRA[]>([]);
@@ -71,7 +74,7 @@ export const GenerationSettings = ({
     if (field === 'model') {
       const loraOption = AVAILABLE_LORAS.find(lora => lora.model === value);
       if (loraOption) {
-        updatedLoras[index] = { ...updatedLoras[index], name: loraOption.name, model: value };
+        updatedLoras[index] = { ...updatedLoras[index], name: loraOption.name, model: value, customModel: '' };
       }
     } else {
       updatedLoras[index] = { ...updatedLoras[index], [field]: value };
@@ -86,14 +89,15 @@ export const GenerationSettings = ({
     const loraArray = selectedLoras
       .filter(lora => lora.model !== 'none') // Exclude "None" selections
       .map(lora => ({
-        model: lora.model,
+        model: lora.model === 'custom' ? lora.customModel || '' : lora.model,
         weight: lora.weight
-      }));
+      }))
+      .filter(lora => lora.model.trim() !== ''); // Remove empty custom models
 
     const params: GenerateImageParams = {
       positivePrompt: prompt,
       negativePrompt: negativePrompt || undefined,
-      model,
+      model: model === 'custom' ? customModel : model,
       numberResults: 1,
       outputFormat: 'JPEG',
       width: width[0],
@@ -176,10 +180,11 @@ export const GenerationSettings = ({
               <SelectTrigger className="bg-ai-surface-elevated border-border">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="runware:101@1">Flux (runware:101@1)</SelectItem>
-                <SelectItem value="runware:100@1">Flux Schnell</SelectItem>
-              </SelectContent>
+            <SelectContent>
+              <SelectItem value="runware:101@1">Flux (runware:101@1)</SelectItem>
+              <SelectItem value="runware:100@1">Flux Schnell</SelectItem>
+              <SelectItem value="custom">Custom AIR Code</SelectItem>
+            </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
@@ -195,6 +200,19 @@ export const GenerationSettings = ({
             </Select>
           </div>
         </div>
+
+        {/* Custom Model Input */}
+        {model === 'custom' && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Custom Model AIR Code</Label>
+            <Textarea
+              placeholder="Paste model AIR code here (e.g., runware:123@1)"
+              value={customModel}
+              onChange={(e) => setCustomModel(e.target.value)}
+              className="min-h-16 bg-ai-surface-elevated border-border focus:border-primary/50"
+            />
+          </div>
+        )}
 
         {/* Dimensions */}
         <div className="grid grid-cols-2 gap-4">
@@ -276,48 +294,60 @@ export const GenerationSettings = ({
           {selectedLoras.length === 0 ? (
             <p className="text-xs text-muted-foreground">No LoRAs selected</p>
           ) : (
-            <div className="space-y-3">
-              {selectedLoras.map((lora, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 bg-ai-surface rounded border">
-                  <div className="flex-1">
-                    <Select 
-                      value={lora.model} 
-                      onValueChange={(value) => handleLoraChange(index, 'model', value)}
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {AVAILABLE_LORAS.map((availableLora) => (
-                          <SelectItem key={availableLora.model} value={availableLora.model}>
-                            {availableLora.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="w-20">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={lora.weight}
-                      onChange={(e) => handleLoraChange(index, 'weight', parseFloat(e.target.value) || 1)}
-                      className="h-8 text-center"
-                    />
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleRemoveLora(index)}
-                    className="h-8 w-8 p-0"
-                  >
-                    ×
-                  </Button>
-                </div>
-              ))}
-            </div>
+             <div className="space-y-3">
+               {selectedLoras.map((lora, index) => (
+                 <div key={index} className="space-y-2">
+                   <div className="flex items-center gap-3 p-3 bg-ai-surface rounded border">
+                     <div className="flex-1">
+                       <Select 
+                         value={lora.model} 
+                         onValueChange={(value) => handleLoraChange(index, 'model', value)}
+                       >
+                         <SelectTrigger className="h-8">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {AVAILABLE_LORAS.map((availableLora) => (
+                             <SelectItem key={availableLora.model} value={availableLora.model}>
+                               {availableLora.name}
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                     </div>
+                     <div className="w-20">
+                       <Input
+                         type="number"
+                         min="0"
+                         max="2"
+                         step="0.1"
+                         value={lora.weight}
+                         onChange={(e) => handleLoraChange(index, 'weight', parseFloat(e.target.value) || 1)}
+                         className="h-8 text-center"
+                       />
+                     </div>
+                     <Button 
+                       variant="outline" 
+                       size="sm" 
+                       onClick={() => handleRemoveLora(index)}
+                       className="h-8 w-8 p-0"
+                     >
+                       ×
+                     </Button>
+                   </div>
+                   {lora.model === 'custom' && (
+                     <div className="px-3">
+                       <Textarea
+                         placeholder="Paste LoRA AIR code here (e.g., runware:123@1)"
+                         value={lora.customModel || ''}
+                         onChange={(e) => handleLoraChange(index, 'customModel', e.target.value)}
+                         className="h-16 text-xs resize-none"
+                       />
+                     </div>
+                   )}
+                 </div>
+               ))}
+             </div>
           )}
         </div>
 
