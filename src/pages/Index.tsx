@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ImageUpload } from '@/components/ImageUpload';
 import { ControlNetSelector } from '@/components/ControlNetSelector';
