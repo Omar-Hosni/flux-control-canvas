@@ -486,14 +486,12 @@ export class RunwareService {
     const taskUUID = crypto.randomUUID();
     
     return new Promise((resolve, reject) => {
-      const message = [{
+      const message: any = [{
         taskType: "imageInference",
         taskUUID,
         model: params.model || "runware:106@1", // Updated Flux Kontext model
         numberResults: params.numberResults || 1,
         outputFormat: params.outputFormat || "JPEG",
-        width: params.width || 1024,
-        height: params.height || 1024,
         steps: params.steps || 28,
         CFGScale: params.CFGScale || 2.5,
         scheduler: "Default",
@@ -552,7 +550,7 @@ export class RunwareService {
     const taskUUID = crypto.randomUUID();
     
     return new Promise((resolve, reject) => {
-      const message = [{
+      const message: any = [{
         taskType: "imageInference",
         taskUUID,
         model: "bfl:3@1", // Flux Kontext Pro model
