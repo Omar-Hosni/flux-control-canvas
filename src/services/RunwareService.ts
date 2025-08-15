@@ -501,12 +501,19 @@ export class RunwareService {
         outputType: ["dataURI", "URL"],
         positivePrompt: params.positivePrompt,
         referenceImages: params.referenceImages, // Use referenceImages instead of inputImages
-        ...(params.lora && { lora: params.lora }),
         outputQuality: 85,
         advancedFeatures: {
           guidanceEndStepPercentage: 75
         }
       }];
+
+      // Only add LoRA if it exists and has valid models
+      if (params.lora && params.lora.length > 0) {
+        const validLoras = params.lora.filter(lora => lora.model && lora.model.trim() !== '');
+        if (validLoras.length > 0) {
+          message[0].lora = validLoras;
+        }
+      }
 
       console.log("Sending Flux Kontext generation message:", message);
 
@@ -557,12 +564,19 @@ export class RunwareService {
         outputType: ["dataURI", "URL"],
         positivePrompt: params.positivePrompt,
         referenceImages: params.referenceImages,
-        ...(params.lora && { lora: params.lora }),
         outputQuality: 85,
         advancedFeatures: {
           guidanceEndStepPercentage: 75
         }
       }];
+
+      // Only add LoRA if it exists and has valid models
+      if (params.lora && params.lora.length > 0) {
+        const validLoras = params.lora.filter(lora => lora.model && lora.model.trim() !== '');
+        if (validLoras.length > 0) {
+          message[0].lora = validLoras;
+        }
+      }
 
       console.log("Sending Flux Kontext Pro generation message:", message);
 
