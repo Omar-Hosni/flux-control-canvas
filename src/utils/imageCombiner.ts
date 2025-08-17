@@ -14,17 +14,21 @@ export const combineImages = async (image1Info: ImageInfo, image2Info: ImageInfo
       return;
     }
 
-    // Load images
+    // Load images with CORS support
     const img1 = new Image();
     const img2 = new Image();
+    img1.crossOrigin = 'anonymous';
+    img2.crossOrigin = 'anonymous';
 
     Promise.all([
-      new Promise<void>((resolve) => {
+      new Promise<void>((resolve, reject) => {
         img1.onload = () => resolve();
+        img1.onerror = (e) => reject(e);
         img1.src = image1Info.data;
       }),
-      new Promise<void>((resolve) => {
+      new Promise<void>((resolve, reject) => {
         img2.onload = () => resolve();
+        img2.onerror = (e) => reject(e);
         img2.src = image2Info.data;
       })
     ]).then(() => {
@@ -147,9 +151,13 @@ export const combineImages = async (image1Info: ImageInfo, image2Info: ImageInfo
       ctx.drawImage(img1, img1X, img1Y, img1W, img1H);
       ctx.drawImage(img2, img2X, img2Y, img2W, img2H);
 
-      // Return data URL
-      const dataUrl = canvas.toDataURL('image/png');
-      resolve(dataUrl);
+      // Return data URL (handle potential SecurityError from tainted canvas)
+      try {
+        const dataUrl = canvas.toDataURL('image/png');
+        resolve(dataUrl);
+      } catch (err) {
+        reject(err as any);
+      }
     }).catch(reject);
   });
 };
@@ -157,6 +165,7 @@ export const combineImages = async (image1Info: ImageInfo, image2Info: ImageInfo
 export const getImageInfo = async (imageUrl: string): Promise<ImageInfo> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       resolve({
         width: img.width,
