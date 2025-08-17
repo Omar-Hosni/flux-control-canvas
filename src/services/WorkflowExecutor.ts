@@ -280,15 +280,13 @@ export class WorkflowExecutor {
             }
           }
           
-          // Fallback to original behavior if no specific types are set
-          if (inputImages.length >= 2) {
-            const sceneResult = await this.runwareService.generateReScene(
-              inputImages[0], // object
-              inputImages[1], // scene
-              useFluxKontextPro,
-              sizeRatio as string
-            );
-            return sceneResult.imageURL;
+          // Fallback: If we have any image inputs, use Flux Kontext with default re-scene prompt
+          if (inputImages.length > 0) {
+            const result = await this.runwareService.generateFluxKontext({
+              positivePrompt: 'put it here, the object in the scene',
+              referenceImages: inputImages
+            });
+            return result.imageURL;
           }
           
           return null;
