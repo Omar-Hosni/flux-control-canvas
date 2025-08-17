@@ -10,6 +10,7 @@ interface ImageInputNodeProps {
   data: {
     label: string;
     imageUrl: string | null;
+    imageType?: 'object' | 'scene' | 'fuse';
   };
 }
 
@@ -57,7 +58,14 @@ export const ImageInputNode = memo(({ id, data }: ImageInputNodeProps) => {
         <div className="p-1.5 rounded bg-gradient-to-br from-blue-500 to-cyan-500">
           <Image className="w-3 h-3 text-white" />
         </div>
-        <h3 className="text-sm font-medium text-foreground">{data.label}</h3>
+        <div className="flex flex-col flex-1">
+          <h3 className="text-sm font-medium text-foreground">{data.label}</h3>
+          {data.imageType && (
+            <span className="text-xs text-muted-foreground capitalize">
+              {data.imageType} image
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="space-y-3">

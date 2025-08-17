@@ -231,14 +231,53 @@ export class WorkflowExecutor {
           return finalResult.imageURL;
 
         case 'rescene':
-          if (inputImages.length < 2) return null;
-          const sceneResult = await this.runwareService.generateReScene(
-            inputImages[0], // object
-            inputImages[1], // scene
-            useFluxKontextPro,
-            sizeRatio as string
-          );
-          return sceneResult.imageURL;
+          // Handle rescene scenarios based on image input types
+          const imageInputNodes = connectedNodes.filter(n => n?.type === 'imageInput');
+          
+          // Scenario 1: Single fuse image
+          const fuseImages = imageInputNodes.filter(n => n?.data.imageType === 'fuse');
+          if (fuseImages.length === 1) {
+            const fuseImageUrl = inputs[fuseImages[0]!.id];
+            if (fuseImageUrl) {
+              const result = await this.runwareService.generateFluxKontext({
+                positivePrompt: 'put it here, the object in the scene',
+                referenceImages: [fuseImageUrl]
+              });
+              return result.imageURL;
+            }
+          }
+          
+          // Scenario 2: Object and scene images
+          const objectImages = imageInputNodes.filter(n => n?.data.imageType === 'object');
+          const sceneImages = imageInputNodes.filter(n => n?.data.imageType === 'scene');
+          
+          if (objectImages.length === 1 && sceneImages.length === 1) {
+            const objectImageUrl = inputs[objectImages[0]!.id];
+            const sceneImageUrl = inputs[sceneImages[0]!.id];
+            
+            if (objectImageUrl && sceneImageUrl) {
+              const result = await this.runwareService.generateReScene(
+                objectImageUrl,
+                sceneImageUrl,
+                useFluxKontextPro,
+                sizeRatio as string
+              );
+              return result.imageURL;
+            }
+          }
+          
+          // Fallback to original behavior if no specific types are set
+          if (inputImages.length >= 2) {
+            const sceneResult = await this.runwareService.generateReScene(
+              inputImages[0], // object
+              inputImages[1], // scene
+              useFluxKontextPro,
+              sizeRatio as string
+            );
+            return sceneResult.imageURL;
+          }
+          
+          return null;
 
         case 'reangle':
           if (inputImages.length === 0) return null;

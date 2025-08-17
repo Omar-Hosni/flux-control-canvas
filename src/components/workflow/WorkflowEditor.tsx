@@ -27,6 +27,7 @@ import { GearNode } from './nodes/GearNode';
 import { OutputNode } from './nodes/OutputNode';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
+import { ImageTypeSelectionDialog } from './ImageTypeSelectionDialog';
 import { useWorkflowStore } from '../../stores/workflowStore';
 
 // Define node types
@@ -53,8 +54,10 @@ const initialNodes: Node[] = [
 const initialEdges: Edge[] = [];
 
 export const WorkflowEditor = () => {
-  const { nodes, edges, selectedNodeId, setSelectedNodeId, setNodes, setEdges } = useWorkflowStore();
+  const { nodes, edges, selectedNodeId, setSelectedNodeId, setNodes, setEdges, updateNodeData } = useWorkflowStore();
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Initialize with default nodes if empty
   useEffect(() => {
@@ -82,8 +85,21 @@ export const WorkflowEditor = () => {
   }, [edges, setEdges]);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges([...edges, { ...params, id: `${params.source}-${params.target}` }]),
-    [edges, setEdges],
+    (params: Connection) => {
+      // Check if connecting an imageInput node to a rerendering node of type 'rescene'
+      const sourceNode = nodes.find(n => n.id === params.source);
+      const targetNode = nodes.find(n => n.id === params.target);
+      
+      if (sourceNode?.type === 'imageInput' && 
+          targetNode?.type === 'rerendering' && 
+          targetNode.data.rerenderingType === 'rescene') {
+        setPendingConnection(params);
+        setDialogOpen(true);
+      } else {
+        setEdges([...edges, { ...params, id: `${params.source}-${params.target}` }]);
+      }
+    },
+    [edges, setEdges, nodes],
   );
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
@@ -103,6 +119,22 @@ export const WorkflowEditor = () => {
     };
     setNodes([...nodes, newNode]);
   }, [nodes, setNodes]);
+
+  const handleImageTypeSelect = useCallback((type: 'object' | 'scene' | 'fuse') => {
+    if (pendingConnection) {
+      // Update the source image node with the selected type
+      updateNodeData(pendingConnection.source!, { imageType: type });
+      
+      // Create the edge
+      setEdges([...edges, { 
+        ...pendingConnection, 
+        id: `${pendingConnection.source}-${pendingConnection.target}` 
+      }]);
+      
+      setPendingConnection(null);
+    }
+    setDialogOpen(false);
+  }, [pendingConnection, edges, setEdges, updateNodeData]);
 
   return (
     <div className="h-screen flex bg-background">
@@ -133,6 +165,12 @@ export const WorkflowEditor = () => {
       </div>
 
       <RightSidebar selectedNode={selectedNode} />
+      
+      <ImageTypeSelectionDialog
+        isOpen={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSelect={handleImageTypeSelect}
+      />
     </div>
   );
 };
