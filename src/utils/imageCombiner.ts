@@ -32,36 +32,13 @@ export const combineImages = async (image1Info: ImageInfo, image2Info: ImageInfo
         img2.src = image2Info.data;
       })
     ]).then(() => {
-      // Determine combination strategy
-      const img1Area = image1Info.width * image1Info.height;
-      const img2Area = image2Info.width * image2Info.height;
-      const sizeDifference = Math.abs(img1Area - img2Area) / Math.max(img1Area, img2Area);
-
       let combinedWidth: number;
       let combinedHeight: number;
       let img1X = 0, img1Y = 0, img1W = image1Info.width, img1H = image1Info.height;
       let img2X = 0, img2Y = 0, img2W = image2Info.width, img2H = image2Info.height;
 
-      // Strategy 1: One image is significantly smaller (>40% difference) - overlay
-      if (sizeDifference > 0.4) {
-        const [largerInfo, smallerInfo] = 
-          img1Area > img2Area ? [image1Info, image2Info] : [image2Info, image1Info];
-        
-        combinedWidth = largerInfo.width;
-        combinedHeight = largerInfo.height;
-        
-        if (img1Area > img2Area) {
-          img1X = 0; img1Y = 0;
-          img2X = largerInfo.width - smallerInfo.width - 20; // 20px margin
-          img2Y = 20; // 20px margin from top
-        } else {
-          img2X = 0; img2Y = 0;
-          img1X = largerInfo.width - smallerInfo.width - 20;
-          img1Y = 20;
-        }
-      }
-      // Strategy 2: Both portrait - side by side
-      else if (image1Info.isPortrait && image2Info.isPortrait) {
+      // Strategy 1: Both portrait - side by side
+      if (image1Info.isPortrait && image2Info.isPortrait) {
         const maxHeight = Math.max(image1Info.height, image2Info.height);
         const scale1 = maxHeight / image1Info.height;
         const scale2 = maxHeight / image2Info.height;
