@@ -1,6 +1,7 @@
 import { Node, Edge } from '@xyflow/react';
 import { RunwareService } from '@/services/RunwareService';
 import { useWorkflowStore } from '@/stores/workflowStore';
+import { combineImages, getImageInfo } from '@/utils/imageCombiner';
 
 export class WorkflowExecutor {
   private runwareService: RunwareService;
@@ -256,12 +257,25 @@ export class WorkflowExecutor {
             const sceneImageUrl = inputs[sceneImages[0]!.id];
             
             if (objectImageUrl && sceneImageUrl) {
-              const result = await this.runwareService.generateReScene(
-                objectImageUrl,
-                sceneImageUrl,
-                useFluxKontextPro,
-                sizeRatio as string
-              );
+              // Get image info and combine images
+              const [objectInfo, sceneInfo] = await Promise.all([
+                getImageInfo(objectImageUrl),
+                getImageInfo(sceneImageUrl)
+              ]);
+              
+              // Combine the images
+              const combinedImageDataUrl = await combineImages(objectInfo, sceneInfo);
+              
+              // Convert data URL to blob and upload
+              const response = await fetch(combinedImageDataUrl);
+              const blob = await response.blob();
+              const combinedFile = new File([blob], 'combined-image.png', { type: 'image/png' });
+              const combinedImageUrl = await this.runwareService.uploadImageForURL(combinedFile);
+              
+              const result = await this.runwareService.generateFluxKontext({
+                positivePrompt: 'put the object in that scene while maintaining all details',
+                referenceImages: [combinedImageUrl]
+              });
               return result.imageURL;
             }
           }
