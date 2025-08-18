@@ -9,14 +9,6 @@ import {
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { toast } from "sonner";
 
-const colorNumberToHexString = (colorNum: number | null) => {
-  if (colorNum === null) return "#ffffff";
-  const r = (colorNum >> 16) & 0xff;
-  const g = (colorNum >> 8) & 0xff;
-  const b = colorNum & 0xff;
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-};
-
 const hexToRGB = (hex: string) => {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -36,110 +28,49 @@ const CustomSlider = ({
   max: number;
   step: number;
   onChange: (val: number) => void;
-}) => {
-  return (
-    <Slider.Root
-      className="relative flex items-center select-none touch-none w-[82px] h-5"
-      min={min}
-      max={max}
-      step={step}
-      value={[value]}
-      onValueChange={(val) => onChange(val[0])}
-    >
-      <Slider.Track className="bg-gray-700 relative grow rounded-full h-[2px]">
-        <Slider.Range className="absolute bg-blue-500 h-full rounded-full" />
-      </Slider.Track>
-      <Slider.Thumb className="block w-3 h-3 bg-white rounded-full shadow hover:bg-gray-200 focus:outline-none" />
-    </Slider.Root>
-  );
-};
+}) => (
+  <Slider.Root
+    className="relative flex items-center select-none touch-none w-[82px] h-5"
+    min={min}
+    max={max}
+    step={step}
+    value={[value]}
+    onValueChange={(val) => onChange(val[0])}
+  >
+    <Slider.Track className="bg-gray-700 relative grow rounded-full h-[2px]">
+      <Slider.Range className="absolute bg-blue-500 h-full rounded-full" />
+    </Slider.Track>
+    <Slider.Thumb className="block w-3 h-3 bg-white rounded-full shadow hover:bg-gray-200 focus:outline-none" />
+  </Slider.Root>
+);
 
-export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
-  const { nodes, updateNodeData, runwareService, selectedNodeId } = useWorkflowStore();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+// Child component that owns ALL Rive view model hooks (so parent never changes hook count)
+function RiveControls({
+  rive,
+  nodeType,
+  selectedNode,
+  updateNodeData,
+  runwareService,
+  canvasRef,
+}: {
+  rive: any;
+  nodeType: string;
+  selectedNode: any;
+  updateNodeData: (id: string, data: any) => void;
+  runwareService: any;
+  canvasRef: React.MutableRefObject<HTMLCanvasElement | null>;
+}) {
+  const isPose = nodeType === 'pose';
+  const isLights = nodeType === 'lights';
   const isInitializedRef = useRef(false);
-  
-  // Find the selected node based on selectedNodeId
-  const selectedNode = nodes.find(node => node.id === selectedNodeId);
-  
-  // Determine if this component should show anything based on node type and selection
-  const shouldRender = useMemo(() => {
-    if (!selectedNode) return false;
-    
-    const isPoseNode = nodeType === 'pose' && selectedNode.type === 'controlNet' && selectedNode.data?.preprocessor === 'openpose';
-    const isLightNode = nodeType === 'lights' && (selectedNode.type?.includes('light') || (typeof selectedNode.data?.label === 'string' && selectedNode.data.label.toLowerCase().includes('light')));
-    
-    return isPoseNode || isLightNode;
-  }, [selectedNode, nodeType]);
 
-  const nodeConfig = useMemo(() => {
-    if (!selectedNode) return null;
-    
-    const isPoseNode = nodeType === 'pose' && selectedNode.type === 'controlNet' && selectedNode.data?.preprocessor === 'openpose';
-    const isLightNode = nodeType === 'lights' && (selectedNode.type?.includes('light') || (typeof selectedNode.data?.label === 'string' && selectedNode.data.label.toLowerCase().includes('light')));
-    
-    return {
-      isPose: isPoseNode,
-      isLights: isLightNode,
-      rivePath: nodeType.includes("pose") ? "/pose.riv" : nodeType.includes("lights") ? "/lights.riv" : null,
-      artboard: nodeType.includes("lights") ? "Artboard" : "final for nover"
-    };
-  }, [selectedNode, nodeType]);
-
-  // Always call useRive hook, but with conditional src
-  const { rive, RiveComponent } = useRive({
-    src: shouldRender && nodeConfig?.rivePath ? nodeConfig.rivePath : "",
-    autoplay: shouldRender,
-    artboard: nodeConfig?.artboard || "final for nover",
-    autoBind: shouldRender,
-    stateMachines: "State Machine 1",
-  });
-
-  // Always call all hooks - they will just return null/default values when not needed
+  // Common view model bindings
   const { value: exportVersion, setValue: setExportVersion } = useViewModelInstanceBoolean("export version", rive?.viewModelInstance);
+
+  // Rive view model bindings for light
   const { value: editingLights, setValue: setEditingLights } = useViewModelInstanceBoolean("editing", rive?.viewModelInstance);
 
-  // Pose hooks - always called
-  const { value: zooming, setValue: setZooming } = useViewModelInstanceNumber("zooming", rive?.viewModelInstance);
-  const { value: neck, setValue: setNeck } = useViewModelInstanceNumber("neck", rive?.viewModelInstance);
-  const { value: head, setValue: setHead } = useViewModelInstanceNumber("head", rive?.viewModelInstance);
-  const { value: stroke, setValue: setStroke } = useViewModelInstanceNumber("stroke", rive?.viewModelInstance);
-  const { value: ballSize, setValue: setBallSize } = useViewModelInstanceNumber("ball size", rive?.viewModelInstance);
-  
-  const { value: entireLocationX, setValue: setEntireLocationX } = useViewModelInstanceNumber("entire location x", rive?.viewModelInstance);
-  const { value: entireLocationY, setValue: setEntireLocationY } = useViewModelInstanceNumber("entire location y", rive?.viewModelInstance);
-
-  const { value: shoulderLeftX, setValue: setShoulderLeftX } = useViewModelInstanceNumber("shoulder left x", rive?.viewModelInstance);
-  const { value: shoulderLeftY, setValue: setShoulderLeftY } = useViewModelInstanceNumber("shoulder left y", rive?.viewModelInstance);
-  const { value: shoulderRightX, setValue: setShoulderRightX } = useViewModelInstanceNumber("shoulder right x", rive?.viewModelInstance);
-  const { value: shoulderRightY, setValue: setShoulderRightY } = useViewModelInstanceNumber("shoulder right y", rive?.viewModelInstance);
-
-  const { value: elbowLeftX, setValue: setElbowLeftX } = useViewModelInstanceNumber("elbow left x", rive?.viewModelInstance);
-  const { value: elbowLeftY, setValue: setElbowLeftY } = useViewModelInstanceNumber("elbow left y", rive?.viewModelInstance);
-  const { value: elbowRightX, setValue: setElbowRightX } = useViewModelInstanceNumber("elbow right x", rive?.viewModelInstance);
-  const { value: elbowRightY, setValue: setElbowRightY } = useViewModelInstanceNumber("elbow right y", rive?.viewModelInstance);
-
-  const { value: handLeftX, setValue: setHandLeftX } = useViewModelInstanceNumber("hand left x", rive?.viewModelInstance);
-  const { value: handLeftY, setValue: setHandLeftY } = useViewModelInstanceNumber("hand left y", rive?.viewModelInstance);
-  const { value: handRightX, setValue: setHandRightX } = useViewModelInstanceNumber("hand right x", rive?.viewModelInstance);
-  const { value: handRightY, setValue: setHandRightY } = useViewModelInstanceNumber("hand right y", rive?.viewModelInstance);
-
-  const { value: waistLeftX, setValue: setWaistLeftX } = useViewModelInstanceNumber("waist left x", rive?.viewModelInstance);
-  const { value: waistLeftY, setValue: setWaistLeftY } = useViewModelInstanceNumber("waist left y", rive?.viewModelInstance);
-  const { value: waistRightX, setValue: setWaistRightX } = useViewModelInstanceNumber("waist right x", rive?.viewModelInstance);
-  const { value: waistRightY, setValue: setWaistRightY } = useViewModelInstanceNumber("waist right y", rive?.viewModelInstance);
-
-  const { value: kneeLeftX, setValue: setKneeLeftX } = useViewModelInstanceNumber("knee left x", rive?.viewModelInstance);
-  const { value: kneeLeftY, setValue: setKneeLeftY } = useViewModelInstanceNumber("knee left y", rive?.viewModelInstance);
-  const { value: kneeRightX, setValue: setKneeRightX } = useViewModelInstanceNumber("knee right x", rive?.viewModelInstance);
-  const { value: kneeRightY, setValue: setKneeRightY } = useViewModelInstanceNumber("knee right y", rive?.viewModelInstance);
-
-  const { value: footLeftX, setValue: setFootLeftX } = useViewModelInstanceNumber("foot left x", rive?.viewModelInstance);
-  const { value: footLeftY, setValue: setFootLeftY } = useViewModelInstanceNumber("foot left y", rive?.viewModelInstance);
-  const { value: footRightX, setValue: setFootRightX } = useViewModelInstanceNumber("foot right x", rive?.viewModelInstance);
-  const { value: footRightY, setValue: setFootRightY } = useViewModelInstanceNumber("foot right y", rive?.viewModelInstance);
-
-  // Light hooks - always called
+  // Light hooks (fixed count)
   const lightControls = [
     {
       color: useViewModelInstanceColor("color1", rive?.viewModelInstance),
@@ -187,10 +118,38 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
     },
   ];
 
-  // Now after all hooks, do the conditional logic
-  if (!shouldRender || !selectedNode || !nodeConfig) return null;
-
-  const { isPose, isLights } = nodeConfig;
+  // Pose hooks (fixed count)
+  const { value: zooming, setValue: setZooming } = useViewModelInstanceNumber("zooming", rive?.viewModelInstance);
+  const { value: neck, setValue: setNeck } = useViewModelInstanceNumber("neck", rive?.viewModelInstance);
+  const { value: head, setValue: setHead } = useViewModelInstanceNumber("head", rive?.viewModelInstance);
+  const { value: stroke, setValue: setStroke } = useViewModelInstanceNumber("stroke", rive?.viewModelInstance);
+  const { value: ballSize, setValue: setBallSize } = useViewModelInstanceNumber("ball size", rive?.viewModelInstance);
+  const { value: entireLocationX, setValue: setEntireLocationX } = useViewModelInstanceNumber("entire location x", rive?.viewModelInstance);
+  const { value: entireLocationY, setValue: setEntireLocationY } = useViewModelInstanceNumber("entire location y", rive?.viewModelInstance);
+  const { value: shoulderLeftX, setValue: setShoulderLeftX } = useViewModelInstanceNumber("shoulder left x", rive?.viewModelInstance);
+  const { value: shoulderLeftY, setValue: setShoulderLeftY } = useViewModelInstanceNumber("shoulder left y", rive?.viewModelInstance);
+  const { value: shoulderRightX, setValue: setShoulderRightX } = useViewModelInstanceNumber("shoulder right x", rive?.viewModelInstance);
+  const { value: shoulderRightY, setValue: setShoulderRightY } = useViewModelInstanceNumber("shoulder right y", rive?.viewModelInstance);
+  const { value: elbowLeftX, setValue: setElbowLeftX } = useViewModelInstanceNumber("elbow left x", rive?.viewModelInstance);
+  const { value: elbowLeftY, setValue: setElbowLeftY } = useViewModelInstanceNumber("elbow left y", rive?.viewModelInstance);
+  const { value: elbowRightX, setValue: setElbowRightX } = useViewModelInstanceNumber("elbow right x", rive?.viewModelInstance);
+  const { value: elbowRightY, setValue: setElbowRightY } = useViewModelInstanceNumber("elbow right y", rive?.viewModelInstance);
+  const { value: handLeftX, setValue: setHandLeftX } = useViewModelInstanceNumber("hand left x", rive?.viewModelInstance);
+  const { value: handLeftY, setValue: setHandLeftY } = useViewModelInstanceNumber("hand left y", rive?.viewModelInstance);
+  const { value: handRightX, setValue: setHandRightX } = useViewModelInstanceNumber("hand right x", rive?.viewModelInstance);
+  const { value: handRightY, setValue: setHandRightY } = useViewModelInstanceNumber("hand right y", rive?.viewModelInstance);
+  const { value: waistLeftX, setValue: setWaistLeftX } = useViewModelInstanceNumber("waist left x", rive?.viewModelInstance);
+  const { value: waistLeftY, setValue: setWaistLeftY } = useViewModelInstanceNumber("waist left y", rive?.viewModelInstance);
+  const { value: waistRightX, setValue: setWaistRightX } = useViewModelInstanceNumber("waist right x", rive?.viewModelInstance);
+  const { value: waistRightY, setValue: setWaistRightY } = useViewModelInstanceNumber("waist right y", rive?.viewModelInstance);
+  const { value: kneeLeftX, setValue: setKneeLeftX } = useViewModelInstanceNumber("knee left x", rive?.viewModelInstance);
+  const { value: kneeLeftY, setValue: setKneeLeftY } = useViewModelInstanceNumber("knee left y", rive?.viewModelInstance);
+  const { value: kneeRightX, setValue: setKneeRightX } = useViewModelInstanceNumber("knee right x", rive?.viewModelInstance);
+  const { value: kneeRightY, setValue: setKneeRightY } = useViewModelInstanceNumber("knee right y", rive?.viewModelInstance);
+  const { value: footLeftX, setValue: setFootLeftX } = useViewModelInstanceNumber("foot left x", rive?.viewModelInstance);
+  const { value: footLeftY, setValue: setFootLeftY } = useViewModelInstanceNumber("foot left y", rive?.viewModelInstance);
+  const { value: footRightX, setValue: setFootRightX } = useViewModelInstanceNumber("foot right x", rive?.viewModelInstance);
+  const { value: footRightY, setValue: setFootRightY } = useViewModelInstanceNumber("foot right y", rive?.viewModelInstance);
 
   const right_sidebar = (selectedNode?.data as any)?.right_sidebar || {
     lights: [
@@ -242,20 +201,10 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
     foot_right_y: (right_sidebar as any)?.foot_right_y
   };
 
-  const lightValuesRef = (i: number) => {
-    return (right_sidebar as any)?.lights?.find((light: any) => light.id === i);
-  };
+  const lightValuesRef = (i: number) => (right_sidebar as any)?.lights?.find((light: any) => light.id === i);
 
   const onChangeLightValue = (i: number, key: string, value: any) => {
-    const updatedLights = (right_sidebar as any)?.lights?.map((light: any) => {
-      if (light?.id === i) {
-        return {
-          ...light,
-          [key]: value
-        };
-      }
-      return light;
-    });
+    const updatedLights = (right_sidebar as any)?.lights?.map((light: any) => (light?.id === i ? { ...light, [key]: value } : light));
 
     updateNodeData(selectedNode!.id, {
       right_sidebar: {
@@ -284,7 +233,7 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
     try {
       const canvas = canvasRef.current;
       const dataUrl = canvas.toDataURL('image/png');
-      
+
       // Update node immediately with the image data
       updateNodeData(selectedNode.id, { 
         image: dataUrl,
@@ -319,52 +268,36 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
     }
   };
 
-  useEffect(() => {
-    if (!rive) return;
-    // Get canvas from rive instance
-    const riveCanvas = (rive as any).canvas as HTMLCanvasElement;
-    if (riveCanvas) {
-      canvasRef.current = riveCanvas;
-    }
-  }, [rive]);
-
-  //when rive pose changes, update the right sidebar
+  // Pose sync
   useEffect(() => {
     if (!rive || !rive.viewModelInstance || !isPose) return;
     const updatedPoseValues = {
       entire_location_x: entireLocationX,
       entire_location_y: entireLocationY,
-
       shoulder_left_x: shoulderLeftX,
       shoulder_left_y: shoulderLeftY,
       shoulder_right_x: shoulderRightX,
       shoulder_right_y: shoulderRightY,
-
       elbow_left_x: elbowLeftX,
       elbow_left_y: elbowLeftY,
       elbow_right_x: elbowRightX,
       elbow_right_y: elbowRightY,
-
       hand_left_x: handLeftX,
       hand_left_y: handLeftY,
       hand_right_x: handRightX,
       hand_right_y: handRightY,
-
       waist_left_x: waistLeftX,
       waist_left_y: waistLeftY,
       waist_right_x: waistRightX,
       waist_right_y: waistRightY,
-
       knee_left_x: kneeLeftX,
       knee_left_y: kneeLeftY,
       knee_right_x: kneeRightX,
       knee_right_y: kneeRightY,
-
       foot_left_x: footLeftX,
       foot_left_y: footLeftY,
       foot_right_x: footRightX,
       foot_right_y: footRightY,
-
       head: head,
       zooming: zooming,
       neck: neck,
@@ -372,12 +305,7 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
       stroke: stroke
     };
 
-    updateNodeData(selectedNode.id, {
-      right_sidebar: {
-        ...right_sidebar,
-        ...updatedPoseValues
-      },
-    });
+    updateNodeData(selectedNode.id, { right_sidebar: { ...right_sidebar, ...updatedPoseValues } });
   }, [
     isPose,
     entireLocationX, entireLocationY,
@@ -390,16 +318,13 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
     head, zooming, neck, ballSize, stroke
   ]);
 
-  //when rive light changes, update the right sidebar
+  // Lights sync
   useEffect(() => {
     if (!rive || !rive.viewModelInstance || !isLights) return;
 
     const newLights = right_sidebar.lights?.map((light: any, idx: number) => {
       const control = lightControls[idx];
-      if (!control.selected.value) {
-        return light; // skip update; preserve as-is
-      }
-
+      if (!control.selected.value) return light;
       return {
         ...light,
         selected: control.selected.value,
@@ -408,29 +333,23 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
         angle: control.angle.value,
         locationX: control.locationX.value,
         locationY: control.locationY.value,
-        ...(idx > 0 ? { add: light.add || control.added.value } : {}), // Only lights 2–4 have `add`
+        ...(idx > 0 ? { add: light.add || control.added.value } : {}),
       };
     }) || [];
 
-    // Prevent unnecessary updates
     const hasChanges = JSON.stringify(newLights) !== JSON.stringify(right_sidebar.lights);
     if (!hasChanges) return;
 
-    updateNodeData(selectedNode.id, {
-      right_sidebar: {
-        ...right_sidebar,
-        lights: newLights,
-      },
-    });
+    updateNodeData(selectedNode.id, { right_sidebar: { ...right_sidebar, lights: newLights } });
   }, [
     isLights,
     ...lightControls.flatMap(control => [
-      control.selected.value, control.power.value, control.width.value, 
+      control.selected.value, control.power.value, control.width.value,
       control.angle.value, control.locationX.value, control.locationY.value, control.added.value
     ])
   ]);
 
-  //initialize values for pose and light upon rendering/node select 
+  // Initialize on mount
   useEffect(() => {
     if (!rive || !rive.viewModelInstance) return;
 
@@ -440,36 +359,29 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
       setHead(poseValuesRef.head ?? 0);
       setStroke(poseValuesRef.stroke ?? 50);
       setBallSize(poseValuesRef.ball_size ?? 50);
-      setExportVersion(false); // Always start with false to prevent auto-upload
-
+      setExportVersion(false);
       setEntireLocationX(poseValuesRef.entire_location_x ?? 0);
       setEntireLocationY(poseValuesRef.entire_location_y ?? 0);
-
       setShoulderLeftX(poseValuesRef.shoulder_left_x ?? 0);
       setShoulderLeftY(poseValuesRef.shoulder_left_y ?? 0);
       setShoulderRightX(poseValuesRef.shoulder_right_x ?? 0);
       setShoulderRightY(poseValuesRef.shoulder_right_y ?? 0);
-
       setElbowLeftX(poseValuesRef.elbow_left_x ?? 0);
       setElbowLeftY(poseValuesRef.elbow_left_y ?? 0);
       setElbowRightX(poseValuesRef.elbow_right_x ?? 0);
       setElbowRightY(poseValuesRef.elbow_right_y ?? 0);
-
       setHandLeftX(poseValuesRef.hand_left_x ?? 0);
       setHandLeftY(poseValuesRef.hand_left_y ?? 0);
       setHandRightX(poseValuesRef.hand_right_x ?? 0);
       setHandRightY(poseValuesRef.hand_right_y ?? 0);
-
       setWaistLeftX(poseValuesRef.waist_left_x ?? 0);
       setWaistLeftY(poseValuesRef.waist_left_y ?? 0);
       setWaistRightX(poseValuesRef.waist_right_x ?? 0);
       setWaistRightY(poseValuesRef.waist_right_y ?? 0);
-
       setKneeLeftX(poseValuesRef.knee_left_x ?? 0);
       setKneeLeftY(poseValuesRef.knee_left_y ?? 0);
       setKneeRightX(poseValuesRef.knee_right_x ?? 0);
       setKneeRightY(poseValuesRef.knee_right_y ?? 0);
-
       setFootLeftX(poseValuesRef.foot_left_x ?? 0);
       setFootLeftY(poseValuesRef.foot_left_y ?? 0);
       setFootRightX(poseValuesRef.foot_right_x ?? 0);
@@ -482,16 +394,13 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
       for (let i = 1; i <= 4; i++) {
         const lightRef = lightValuesRef(i);
         if (!lightRef) continue;
-
         const control = lightControls[i - 1];
         control.selected.setValue(false);
         control.size.setValue(lightRef.size ?? 100);
         control.width.setValue(lightRef.width ?? 100);
         control.power.setValue(lightRef.power ?? 100);
-
         const { r, g, b } = hexToRGB((lightRef.color ?? "#ffffff").toString());
         control.color.setRgb(r, g, b);
-
         control.angle.setValue(lightRef.angle ?? 0);
         control.locationX.setValue(lightRef.locationX ?? 250);
         control.locationY.setValue(lightRef.locationY ?? 250);
@@ -503,59 +412,37 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
         lightControls[i-1].added.setValue(lightRef.add ?? false)
       }
     }
-    
-    // Mark as initialized after setting initial values
+
     isInitializedRef.current = true;
   }, [rive, isPose, isLights]);
 
-  //when click done in lights, set export version to true and download image
+  // Done actions
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !isInitializedRef.current || !isLights) return;
 
-    // User done editing - only trigger after initialization
     if (editingLights === false) {
-      
-       for(let i=0; i<4; i++){
-        lightControls[i].selected.setValue(false)
-      }
-
+      for(let i=0; i<4; i++) lightControls[i].selected.setValue(false);
       setExportVersion(true);
-      const timer = setTimeout(() => {
-        handleDone();
-        setExportVersion(false);
-      }, 100);
-
-      return () => clearTimeout(timer); // Cleanup
+      const t = setTimeout(() => { handleDone(); setExportVersion(false); }, 100);
+      return () => clearTimeout(t);
     }
 
-    if (editingLights === true) {
-      setExportVersion(false);
-    }
+    if (editingLights === true) setExportVersion(false);
   }, [editingLights, isLights]);
 
-  //when export version is true, upload screenshot for pose
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !selectedNode || !isInitializedRef.current || !isPose) return;
-
-    // Only trigger after initialization and when user manually sets export version
     if (exportVersion === true) {
-      const timer = setTimeout(() => {
-        handleDone();
-        setExportVersion(false);
-      }, 100);
-
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => { handleDone(); setExportVersion(false); }, 100);
+      return () => clearTimeout(t);
     }
   }, [exportVersion, selectedNode, isPose]);
 
+  // UI
   return (
-    <div className="mb-4">
-      <div className="w-[235px] h-[235px] border-2 border-[#1e1e1e] overflow-hidden rounded-2xl">
-        <RiveComponent className="w-full h-full block" />
-      </div>
-
+    <>
       {isPose && (
         <div className="text-white text-sm space-y-4 mt-4">
           {[
@@ -622,7 +509,7 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
 
           {(() => {
             const selectedIndex = lightControls.findIndex(control => control.selected.value);
-            const ref = lightValuesRef(selectedIndex !== -1 ? selectedIndex + 1 : 1); // default to 1-based ID
+            const ref = lightValuesRef(selectedIndex !== -1 ? selectedIndex + 1 : 1);
             const control = lightControls[selectedIndex] || lightControls[0];
 
             return (
@@ -649,8 +536,8 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
                         onChange={(val) => {
                           if (selectedIndex === -1) return;
                           const controlKey = key as keyof typeof control;
-                          if (controlKey in control && 'setValue' in control[controlKey]) {
-                            (control[controlKey] as any).setValue(val);
+                          if (controlKey in control && 'setValue' in (control as any)[controlKey]) {
+                            (control as any)[controlKey].setValue(val);
                           }
                           onChangeLightValue(selectedIndex + 1, key, val);
                         }}
@@ -677,6 +564,59 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
             );
           })()}
         </div>
+      )}
+    </>
+  );
+}
+
+export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
+  const { nodes, updateNodeData, runwareService, selectedNodeId } = useWorkflowStore();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const selectedNode = nodes.find(node => node.id === selectedNodeId);
+
+  // Determine whether to show controls
+  const shouldRender = useMemo(() => {
+    if (!selectedNode) return false;
+    const isPoseNode = nodeType === 'pose' && selectedNode.type === 'controlNet' && selectedNode.data?.preprocessor === 'openpose';
+    const isLightNode = nodeType === 'lights' && (selectedNode.type?.includes('light') || (typeof selectedNode.data?.label === 'string' && selectedNode.data.label.toLowerCase().includes('light')));
+    return isPoseNode || isLightNode;
+  }, [selectedNode, nodeType]);
+
+  const rivePath = nodeType === 'pose' ? '/pose.riv' : nodeType === 'lights' ? '/lights.riv' : '';
+  const artboard = nodeType === 'lights' ? 'Artboard' : 'final for nover';
+
+  // Parent always calls useRive (stable hook count)
+  const { rive, RiveComponent } = useRive({
+    src: rivePath,
+    autoplay: shouldRender,
+    artboard,
+    autoBind: shouldRender,
+    stateMachines: 'State Machine 1',
+  });
+
+  // Capture canvas for child to use
+  useEffect(() => {
+    if (!rive) return;
+    const riveCanvas = (rive as any).canvas as HTMLCanvasElement;
+    if (riveCanvas) canvasRef.current = riveCanvas;
+  }, [rive]);
+
+  return (
+    <div className="mb-4">
+      <div className="w-[235px] h-[235px] border-2 border-[#1e1e1e] overflow-hidden rounded-2xl">
+        <RiveComponent className="w-full h-full block" />
+      </div>
+
+      {shouldRender && selectedNode && rive?.viewModelInstance && (
+        <RiveControls
+          rive={rive}
+          nodeType={nodeType}
+          selectedNode={selectedNode}
+          updateNodeData={updateNodeData}
+          runwareService={runwareService}
+          canvasRef={canvasRef}
+        />
       )}
     </div>
   );
