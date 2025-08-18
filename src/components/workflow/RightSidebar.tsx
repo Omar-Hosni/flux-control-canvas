@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Cpu, Settings, Type, Image, Users, Eye, Layers, RotateCcw, Palette, Camera, Shuffle, Eraser, ArrowUp, PaintBucket, Crop, MonitorSpeaker, Zap } from 'lucide-react';
 import { useWorkflowStore } from '@/stores/workflowStore';
+import RiveInput from './RiveInput';
 import { Node } from '@xyflow/react';
 
 interface RightSidebarProps {
@@ -208,6 +209,9 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
         );
 
       case 'controlNet':
+        const isOpenPose = nodeData.preprocessor === 'openpose';
+        const guidedImageURL = nodeData.guidedImageURL;
+        
         return (
           <div className="space-y-4">
             <div>
@@ -239,10 +243,52 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
                 className="h-8 text-xs"
               />
             </div>
+            
+            {/* Show preprocessed image or Rive component */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Preview</Label>
+              {isOpenPose && !guidedImageURL ? (
+                <RiveInput nodeType="pose" />
+              ) : guidedImageURL ? (
+                <div className="w-full">
+                  <img 
+                    src={guidedImageURL} 
+                    alt="Preprocessed" 
+                    className="w-full h-auto max-h-48 object-contain rounded border border-border"
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-32 bg-ai-surface-elevated border border-dashed border-border rounded flex items-center justify-center">
+                  <p className="text-xs text-muted-foreground text-center">
+                    Connect an image input to see preview
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         );
 
       default:
+        // Check if this is a light node
+        if (selectedNode.type?.includes('light') || (typeof selectedNode.data?.label === 'string' && selectedNode.data.label.toLowerCase().includes('light'))) {
+          return (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Label</Label>
+                <Input
+                  value={nodeData.label || ''}
+                  onChange={(e) => handleUpdateData('label', e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Light Setup</Label>
+                <RiveInput nodeType="lights" />
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <div>
             <Label className="text-xs text-muted-foreground">Label</Label>
