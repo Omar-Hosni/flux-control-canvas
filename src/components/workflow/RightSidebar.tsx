@@ -73,7 +73,7 @@ const getWorkflows = (nodes: Node[], edges: any[]) => {
 };
 
 export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
-  const { nodes, edges, updateNodeData } = useWorkflowStore();
+  const { nodes, edges, updateNodeData, getProcessedImage } = useWorkflowStore();
   const workflows = getWorkflows(nodes, edges);
   
   const NodeIcon = selectedNode ? getNodeIcon(selectedNode.type!) : Zap;
@@ -247,23 +247,44 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
             {/* Show preprocessed image or Rive component */}
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">Preview</Label>
-              {isOpenPose && !guidedImageURL ? (
-                <RiveInput nodeType="pose" />
-              ) : guidedImageURL ? (
-                <div className="w-full">
-                  <img 
-                    src={guidedImageURL} 
-                    alt="Preprocessed" 
-                    className="w-full h-auto max-h-48 object-contain rounded border border-border"
-                  />
-                </div>
-              ) : (
-                <div className="w-full h-32 bg-ai-surface-elevated border border-dashed border-border rounded flex items-center justify-center">
-                  <p className="text-xs text-muted-foreground text-center">
-                    Connect an image input to see preview
-                  </p>
-                </div>
-              )}
+              {(() => {
+                const isLight = nodeData.preprocessor === 'normal';
+                const isImageConnected = edges.some(
+                  (e) => e.target === selectedNode.id && nodes.find((n) => n.id === e.source)?.type === 'imageInput'
+                );
+                const processedUrl = getProcessedImage(selectedNode.id) || guidedImageURL;
+
+                if (isOpenPose) {
+                  if (isImageConnected) {
+                    return processedUrl ? (
+                      <div className="w-full">
+                        <img
+                          src={processedUrl}
+                          alt="Preprocessed"
+                          className="w-full h-auto max-h-48 object-contain rounded border border-border"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-32 bg-ai-surface-elevated border border-dashed border-border rounded flex items-center justify-center">
+                        <p className="text-xs text-muted-foreground text-center">Preprocessing…</p>
+                      </div>
+                    );
+                  }
+                  // No image connected -> show pose Rive editor
+                  return <RiveInput nodeType="pose" />;
+                }
+
+                if (isLight) {
+                  // Always show Lights Rive for Light Control node
+                  return <RiveInput nodeType="lights" />;
+                }
+
+                return (
+                  <div className="w-full h-32 bg-ai-surface-elevated border border-dashed border-border rounded flex items-center justify-center">
+                    <p className="text-xs text-muted-foreground text-center">Connect an image input to see preview</p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         );

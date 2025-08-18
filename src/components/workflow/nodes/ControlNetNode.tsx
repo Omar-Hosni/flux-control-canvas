@@ -45,16 +45,11 @@ export const ControlNetNode = memo(({ id, data }: ControlNetNodeProps) => {
     );
 
     if (connectedImageInputs.length > 0 && workflowExecutor) {
-      const sourceNodeId = connectedImageInputs[0].source;
       const existingPreprocessed = getProcessedImage(id);
-      
       // Only preprocess if we don't already have a result for this node
       if (!existingPreprocessed) {
-        const sourceImage = getProcessedImage(sourceNodeId);
-        if (sourceImage) {
-          // Trigger preprocessing automatically
-          workflowExecutor.executeWorkflow(nodes, edges, id);
-        }
+        // Trigger preprocessing automatically; image input will be handled by executor
+        workflowExecutor.executeWorkflow(nodes, edges, id);
       }
     }
   }, [edges, nodes, id, workflowExecutor, getProcessedImage]);
