@@ -60,6 +60,7 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
   // Find the selected node based on selectedNodeId
   const selectedNode = nodes.find(node => node.id === selectedNodeId);
   
+  // Early returns BEFORE any hooks
   if (!selectedNode) return null;
   
   // Check if the current node type matches the nodeType prop for specific cases
@@ -76,7 +77,9 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
     
   if (!rivePath) return null;
 
+  // All hooks after early returns
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isInitializedRef = useRef(false);
 
   const right_sidebar = (selectedNode?.data as any)?.right_sidebar || {
     lights: [
@@ -355,45 +358,45 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
     if (!rive || !rive.viewModelInstance) return;
 
     if (isPose) {
-      setZooming(poseValuesRef.zooming);
-      setNeck(poseValuesRef.neck);
-      setHead(poseValuesRef.head);
-      setStroke(poseValuesRef.stroke);
-      setBallSize(poseValuesRef.ball_size);
-      setExportVersion(poseValuesRef.export_version);
+      setZooming(poseValuesRef.zooming ?? 100);
+      setNeck(poseValuesRef.neck ?? 50);
+      setHead(poseValuesRef.head ?? 0);
+      setStroke(poseValuesRef.stroke ?? 50);
+      setBallSize(poseValuesRef.ball_size ?? 50);
+      setExportVersion(false); // Always start with false to prevent auto-upload
 
-      setEntireLocationX(poseValuesRef.entire_location_x);
-      setEntireLocationY(poseValuesRef.entire_location_y);
+      setEntireLocationX(poseValuesRef.entire_location_x ?? 0);
+      setEntireLocationY(poseValuesRef.entire_location_y ?? 0);
 
-      setShoulderLeftX(poseValuesRef.shoulder_left_x);
-      setShoulderLeftY(poseValuesRef.shoulder_left_y);
-      setShoulderRightX(poseValuesRef.shoulder_right_x);
-      setShoulderRightY(poseValuesRef.shoulder_right_y);
+      setShoulderLeftX(poseValuesRef.shoulder_left_x ?? 0);
+      setShoulderLeftY(poseValuesRef.shoulder_left_y ?? 0);
+      setShoulderRightX(poseValuesRef.shoulder_right_x ?? 0);
+      setShoulderRightY(poseValuesRef.shoulder_right_y ?? 0);
 
-      setElbowLeftX(poseValuesRef.elbow_left_x);
-      setElbowLeftY(poseValuesRef.elbow_left_y);
-      setElbowRightX(poseValuesRef.elbow_right_x);
-      setElbowRightY(poseValuesRef.elbow_right_y);
+      setElbowLeftX(poseValuesRef.elbow_left_x ?? 0);
+      setElbowLeftY(poseValuesRef.elbow_left_y ?? 0);
+      setElbowRightX(poseValuesRef.elbow_right_x ?? 0);
+      setElbowRightY(poseValuesRef.elbow_right_y ?? 0);
 
-      setHandLeftX(poseValuesRef.hand_left_x);
-      setHandLeftY(poseValuesRef.hand_left_y);
-      setHandRightX(poseValuesRef.hand_right_x);
-      setHandRightY(poseValuesRef.hand_right_y);
+      setHandLeftX(poseValuesRef.hand_left_x ?? 0);
+      setHandLeftY(poseValuesRef.hand_left_y ?? 0);
+      setHandRightX(poseValuesRef.hand_right_x ?? 0);
+      setHandRightY(poseValuesRef.hand_right_y ?? 0);
 
-      setWaistLeftX(poseValuesRef.waist_left_x);
-      setWaistLeftY(poseValuesRef.waist_left_y);
-      setWaistRightX(poseValuesRef.waist_right_x);
-      setWaistRightY(poseValuesRef.waist_right_y);
+      setWaistLeftX(poseValuesRef.waist_left_x ?? 0);
+      setWaistLeftY(poseValuesRef.waist_left_y ?? 0);
+      setWaistRightX(poseValuesRef.waist_right_x ?? 0);
+      setWaistRightY(poseValuesRef.waist_right_y ?? 0);
 
-      setKneeLeftX(poseValuesRef.knee_left_x);
-      setKneeLeftY(poseValuesRef.knee_left_y);
-      setKneeRightX(poseValuesRef.knee_right_x);
-      setKneeRightY(poseValuesRef.knee_right_y);
+      setKneeLeftX(poseValuesRef.knee_left_x ?? 0);
+      setKneeLeftY(poseValuesRef.knee_left_y ?? 0);
+      setKneeRightX(poseValuesRef.knee_right_x ?? 0);
+      setKneeRightY(poseValuesRef.knee_right_y ?? 0);
 
-      setFootLeftX(poseValuesRef.foot_left_x);
-      setFootLeftY(poseValuesRef.foot_left_y);
-      setFootRightX(poseValuesRef.foot_right_x);
-      setFootRightY(poseValuesRef.foot_right_y);
+      setFootLeftX(poseValuesRef.foot_left_x ?? 0);
+      setFootLeftY(poseValuesRef.foot_left_y ?? 0);
+      setFootRightX(poseValuesRef.foot_right_x ?? 0);
+      setFootRightY(poseValuesRef.foot_right_y ?? 0);
     }
 
     if (isLights) {
@@ -418,10 +421,13 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
 
       for(let i = 2; i <=4; i++){
         const lightRef = lightValuesRef(i)
-        if(!lightRef) return;
+        if(!lightRef) continue;
         lights[i-1].lightSetters.setLightAdded(lightRef.add ?? false)
       }
     }
+    
+    // Mark as initialized after setting initial values
+    isInitializedRef.current = true;
   }, [rive]);
 
   useEffect(() => {
@@ -488,10 +494,10 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
   //when click done in lights, set export version to true and download image
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !isInitializedRef.current) return;
 
-    // User done editing
-    if (editingLights === false) {
+    // User done editing - only trigger after initialization
+    if (editingLights === false && isLights) {
       
        for(let i=1; i<=4; i++){
         lights[i-1].lightSetters.setSelected(false)
@@ -514,8 +520,9 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
   //when export version is true, upload screenshot for pose
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !selectedNode) return;
+    if (!canvas || !selectedNode || !isInitializedRef.current) return;
 
+    // Only trigger after initialization and when user manually sets export version
     if (exportVersion === true && isPose) {
       const timer = setTimeout(() => {
         handleDone();
