@@ -56,163 +56,50 @@ const CustomSlider = ({
 
 export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
   const { nodes, updateNodeData, runwareService, selectedNodeId } = useWorkflowStore();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isInitializedRef = useRef(false);
   
   // Find the selected node based on selectedNodeId
   const selectedNode = nodes.find(node => node.id === selectedNodeId);
   
-  // Early returns BEFORE any hooks
-  if (!selectedNode) return null;
-  
-  // Check if the current node type matches the nodeType prop for specific cases
-  const isPoseNode = nodeType === 'pose' && selectedNode.type === 'controlNet' && selectedNode.data?.preprocessor === 'openpose';
-  const isLightNode = nodeType === 'lights' && (selectedNode.type?.includes('light') || (typeof selectedNode.data?.label === 'string' && selectedNode.data.label.toLowerCase().includes('light')));
-  
-  if (!isPoseNode && !isLightNode) return null;
-
-  const rivePath = nodeType.includes("pose")
-    ? "/pose.riv"
-    : nodeType.includes("lights")
-    ? "/lights.riv"
-    : null;
+  // Determine if this component should show anything based on node type and selection
+  const shouldRender = useMemo(() => {
+    if (!selectedNode) return false;
     
-  if (!rivePath) return null;
+    const isPoseNode = nodeType === 'pose' && selectedNode.type === 'controlNet' && selectedNode.data?.preprocessor === 'openpose';
+    const isLightNode = nodeType === 'lights' && (selectedNode.type?.includes('light') || (typeof selectedNode.data?.label === 'string' && selectedNode.data.label.toLowerCase().includes('light')));
+    
+    return isPoseNode || isLightNode;
+  }, [selectedNode, nodeType]);
 
-  // All hooks after early returns
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isInitializedRef = useRef(false);
+  const nodeConfig = useMemo(() => {
+    if (!selectedNode) return null;
+    
+    const isPoseNode = nodeType === 'pose' && selectedNode.type === 'controlNet' && selectedNode.data?.preprocessor === 'openpose';
+    const isLightNode = nodeType === 'lights' && (selectedNode.type?.includes('light') || (typeof selectedNode.data?.label === 'string' && selectedNode.data.label.toLowerCase().includes('light')));
+    
+    return {
+      isPose: isPoseNode,
+      isLights: isLightNode,
+      rivePath: nodeType.includes("pose") ? "/pose.riv" : nodeType.includes("lights") ? "/lights.riv" : null,
+      artboard: nodeType.includes("lights") ? "Artboard" : "final for nover"
+    };
+  }, [selectedNode, nodeType]);
 
-  const right_sidebar = (selectedNode?.data as any)?.right_sidebar || {
-    lights: [
-      { id: 1, size: 100, width: 100, power: 100, color: "#ffffff", angle: 0, locationX: 250, locationY: 250, selected: false },
-      { id: 2, size: 100, width: 100, power: 100, color: "#ffffff", angle: 0, locationX: 250, locationY: 250, selected: false, add: false },
-      { id: 3, size: 100, width: 100, power: 100, color: "#ffffff", angle: 0, locationX: 250, locationY: 250, selected: false, add: false },
-      { id: 4, size: 100, width: 100, power: 100, color: "#ffffff", angle: 0, locationX: 250, locationY: 250, selected: false, add: false }
-    ],
-    zooming: 100,
-    neck: 50,
-    head: 0,
-    stroke: 50,
-    ball_size: 50,
-    export_version: false
-  };
-
-  const poseValuesRef = {
-    zooming: (right_sidebar as any)?.zooming,
-    neck: (right_sidebar as any)?.neck,
-    head: (right_sidebar as any)?.head,
-    stroke: (right_sidebar as any)?.stroke,
-    ball_size: (right_sidebar as any)?.ball_size,
-    export_version: (right_sidebar as any)?.export_version,
-
-    // Entire location
-    entire_location_x: (right_sidebar as any)?.entire_location_x,
-    entire_location_y: (right_sidebar as any)?.entire_location_y,
-
-    // Shoulders
-    shoulder_left_x: (right_sidebar as any)?.shoulder_left_x,
-    shoulder_left_y: (right_sidebar as any)?.shoulder_left_y,
-    shoulder_right_x: (right_sidebar as any)?.shoulder_right_x,
-    shoulder_right_y: (right_sidebar as any)?.shoulder_right_y,
-
-    // Elbows
-    elbow_left_x: (right_sidebar as any)?.elbow_left_x,
-    elbow_left_y: (right_sidebar as any)?.elbow_left_y,
-    elbow_right_x: (right_sidebar as any)?.elbow_right_x,
-    elbow_right_y: (right_sidebar as any)?.elbow_right_y,
-
-    // Hands
-    hand_left_x: (right_sidebar as any)?.hand_left_x,
-    hand_left_y: (right_sidebar as any)?.hand_left_y,
-    hand_right_x: (right_sidebar as any)?.hand_right_x,
-    hand_right_y: (right_sidebar as any)?.hand_right_y,
-
-    // Waist
-    waist_left_x: (right_sidebar as any)?.waist_left_x,
-    waist_left_y: (right_sidebar as any)?.waist_left_y,
-    waist_right_x: (right_sidebar as any)?.waist_right_x,
-    waist_right_y: (right_sidebar as any)?.waist_right_y,
-
-    // Knees
-    knee_left_x: (right_sidebar as any)?.knee_left_x,
-    knee_left_y: (right_sidebar as any)?.knee_left_y,
-    knee_right_x: (right_sidebar as any)?.knee_right_x,
-    knee_right_y: (right_sidebar as any)?.knee_right_y,
-
-    // Feet
-    foot_left_x: (right_sidebar as any)?.foot_left_x,
-    foot_left_y: (right_sidebar as any)?.foot_left_y,
-    foot_right_x: (right_sidebar as any)?.foot_right_x,
-    foot_right_y: (right_sidebar as any)?.foot_right_y
-  };
-
-  const lightValuesRef = (i: number) => {
-    return (right_sidebar as any)?.lights?.find((light: any) => light.id === i);
-  };
-
-  const onChangeLightValue = (i: number, key: string, value: any) => {
-    const updatedLights = (right_sidebar as any)?.lights?.map((light: any) => {
-      if (light?.id === i) {
-        return {
-          ...light,
-          [key]: value
-        };
-      }
-      return light;
-    });
-
-    updateNodeData(selectedNode!.id, {
-      right_sidebar: {
-        ...(right_sidebar as any),
-        lights: updatedLights,
-      },
-    });
-  };
-
-  const artboard = nodeType.includes("lights") ? "Artboard" : "final for nover";
-
-  const isPose = isPoseNode;
-  const isLights = isLightNode;
-  
+  // Always call useRive hook, but with conditional src
   const { rive, RiveComponent } = useRive({
-    src: rivePath || "",
-    autoplay: true,
-    artboard,
-    autoBind: true,
+    src: shouldRender && nodeConfig?.rivePath ? nodeConfig.rivePath : "",
+    autoplay: shouldRender,
+    artboard: nodeConfig?.artboard || "final for nover",
+    autoBind: shouldRender,
     stateMachines: "State Machine 1",
   });
 
-  // Common view model bindings
+  // Always call all hooks - they will just return null/default values when not needed
   const { value: exportVersion, setValue: setExportVersion } = useViewModelInstanceBoolean("export version", rive?.viewModelInstance);
-
-  // Rive view model bindings for light
   const { value: editingLights, setValue: setEditingLights } = useViewModelInstanceBoolean("editing", rive?.viewModelInstance);
 
-  const lightControls = (i: number) => {
-    const { value: color, setValue: setColor, setRgb } = useViewModelInstanceColor(`color${i}`, rive?.viewModelInstance);
-    const { value: size, setValue: setSize } = useViewModelInstanceNumber(`size${i}`, rive?.viewModelInstance);
-    const { value: width, setValue: setWidth } = useViewModelInstanceNumber(`width${i}`, rive?.viewModelInstance);
-    const { value: power, setValue: setPower } = useViewModelInstanceNumber(`power${i}`, rive?.viewModelInstance);
-    const { value: selected, setValue: setSelected } = useViewModelInstanceBoolean(`select light ${i}`, rive?.viewModelInstance);
-    const { value: angle, setValue: setAngle } = useViewModelInstanceNumber(`angle${i}`, rive?.viewModelInstance);
-    const { value: lightLocationX, setValue: setLightLocationX } = useViewModelInstanceNumber(`location${i} X`, rive?.viewModelInstance); 
-    const { value: lightLocationY, setValue: setLightLocationY } = useViewModelInstanceNumber(`location${i} Y`, rive?.viewModelInstance);
-    const { value: lightAdded, setValue: setLightAdded } = useViewModelInstanceBoolean(`add light${i}`, rive?.viewModelInstance);
-
-    return {
-      lightGetters: { color, size, width, power, selected, angle, lightLocationX, lightLocationY, lightAdded },
-      lightSetters: { setRgb, setColor, setSize, setWidth, setPower, setSelected, setAngle, setLightLocationX, setLightLocationY, setLightAdded }
-    };
-  };
-
-  // Initial values
-  const lights = [
-    lightControls(1),
-    lightControls(2),
-    lightControls(3),
-    lightControls(4),
-  ];
-
-  // Rive view model bindings for pose
+  // Pose hooks - always called
   const { value: zooming, setValue: setZooming } = useViewModelInstanceNumber("zooming", rive?.viewModelInstance);
   const { value: neck, setValue: setNeck } = useViewModelInstanceNumber("neck", rive?.viewModelInstance);
   const { value: head, setValue: setHead } = useViewModelInstanceNumber("head", rive?.viewModelInstance);
@@ -252,9 +139,198 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
   const { value: footRightX, setValue: setFootRightX } = useViewModelInstanceNumber("foot right x", rive?.viewModelInstance);
   const { value: footRightY, setValue: setFootRightY } = useViewModelInstanceNumber("foot right y", rive?.viewModelInstance);
 
+  // Light hooks - always called
+  const lightControls = [
+    {
+      color: useViewModelInstanceColor("color1", rive?.viewModelInstance),
+      size: useViewModelInstanceNumber("size1", rive?.viewModelInstance),
+      width: useViewModelInstanceNumber("width1", rive?.viewModelInstance),
+      power: useViewModelInstanceNumber("power1", rive?.viewModelInstance),
+      selected: useViewModelInstanceBoolean("select light 1", rive?.viewModelInstance),
+      angle: useViewModelInstanceNumber("angle1", rive?.viewModelInstance),
+      locationX: useViewModelInstanceNumber("location1 X", rive?.viewModelInstance),
+      locationY: useViewModelInstanceNumber("location1 Y", rive?.viewModelInstance),
+      added: useViewModelInstanceBoolean("add light1", rive?.viewModelInstance),
+    },
+    {
+      color: useViewModelInstanceColor("color2", rive?.viewModelInstance),
+      size: useViewModelInstanceNumber("size2", rive?.viewModelInstance),
+      width: useViewModelInstanceNumber("width2", rive?.viewModelInstance),
+      power: useViewModelInstanceNumber("power2", rive?.viewModelInstance),
+      selected: useViewModelInstanceBoolean("select light 2", rive?.viewModelInstance),
+      angle: useViewModelInstanceNumber("angle2", rive?.viewModelInstance),
+      locationX: useViewModelInstanceNumber("location2 X", rive?.viewModelInstance),
+      locationY: useViewModelInstanceNumber("location2 Y", rive?.viewModelInstance),
+      added: useViewModelInstanceBoolean("add light2", rive?.viewModelInstance),
+    },
+    {
+      color: useViewModelInstanceColor("color3", rive?.viewModelInstance),
+      size: useViewModelInstanceNumber("size3", rive?.viewModelInstance),
+      width: useViewModelInstanceNumber("width3", rive?.viewModelInstance),
+      power: useViewModelInstanceNumber("power3", rive?.viewModelInstance),
+      selected: useViewModelInstanceBoolean("select light 3", rive?.viewModelInstance),
+      angle: useViewModelInstanceNumber("angle3", rive?.viewModelInstance),
+      locationX: useViewModelInstanceNumber("location3 X", rive?.viewModelInstance),
+      locationY: useViewModelInstanceNumber("location3 Y", rive?.viewModelInstance),
+      added: useViewModelInstanceBoolean("add light3", rive?.viewModelInstance),
+    },
+    {
+      color: useViewModelInstanceColor("color4", rive?.viewModelInstance),
+      size: useViewModelInstanceNumber("size4", rive?.viewModelInstance),
+      width: useViewModelInstanceNumber("width4", rive?.viewModelInstance),
+      power: useViewModelInstanceNumber("power4", rive?.viewModelInstance),
+      selected: useViewModelInstanceBoolean("select light 4", rive?.viewModelInstance),
+      angle: useViewModelInstanceNumber("angle4", rive?.viewModelInstance),
+      locationX: useViewModelInstanceNumber("location4 X", rive?.viewModelInstance),
+      locationY: useViewModelInstanceNumber("location4 Y", rive?.viewModelInstance),
+      added: useViewModelInstanceBoolean("add light4", rive?.viewModelInstance),
+    },
+  ];
+
+  // Now after all hooks, do the conditional logic
+  if (!shouldRender || !selectedNode || !nodeConfig) return null;
+
+  const { isPose, isLights } = nodeConfig;
+
+  const right_sidebar = (selectedNode?.data as any)?.right_sidebar || {
+    lights: [
+      { id: 1, size: 100, width: 100, power: 100, color: "#ffffff", angle: 0, locationX: 250, locationY: 250, selected: false },
+      { id: 2, size: 100, width: 100, power: 100, color: "#ffffff", angle: 0, locationX: 250, locationY: 250, selected: false, add: false },
+      { id: 3, size: 100, width: 100, power: 100, color: "#ffffff", angle: 0, locationX: 250, locationY: 250, selected: false, add: false },
+      { id: 4, size: 100, width: 100, power: 100, color: "#ffffff", angle: 0, locationX: 250, locationY: 250, selected: false, add: false }
+    ],
+    zooming: 100,
+    neck: 50,
+    head: 0,
+    stroke: 50,
+    ball_size: 50,
+    export_version: false
+  };
+
+  const poseValuesRef = {
+    zooming: (right_sidebar as any)?.zooming,
+    neck: (right_sidebar as any)?.neck,
+    head: (right_sidebar as any)?.head,
+    stroke: (right_sidebar as any)?.stroke,
+    ball_size: (right_sidebar as any)?.ball_size,
+    export_version: (right_sidebar as any)?.export_version,
+    entire_location_x: (right_sidebar as any)?.entire_location_x,
+    entire_location_y: (right_sidebar as any)?.entire_location_y,
+    shoulder_left_x: (right_sidebar as any)?.shoulder_left_x,
+    shoulder_left_y: (right_sidebar as any)?.shoulder_left_y,
+    shoulder_right_x: (right_sidebar as any)?.shoulder_right_x,
+    shoulder_right_y: (right_sidebar as any)?.shoulder_right_y,
+    elbow_left_x: (right_sidebar as any)?.elbow_left_x,
+    elbow_left_y: (right_sidebar as any)?.elbow_left_y,
+    elbow_right_x: (right_sidebar as any)?.elbow_right_x,
+    elbow_right_y: (right_sidebar as any)?.elbow_right_y,
+    hand_left_x: (right_sidebar as any)?.hand_left_x,
+    hand_left_y: (right_sidebar as any)?.hand_left_y,
+    hand_right_x: (right_sidebar as any)?.hand_right_x,
+    hand_right_y: (right_sidebar as any)?.hand_right_y,
+    waist_left_x: (right_sidebar as any)?.waist_left_x,
+    waist_left_y: (right_sidebar as any)?.waist_left_y,
+    waist_right_x: (right_sidebar as any)?.waist_right_x,
+    waist_right_y: (right_sidebar as any)?.waist_right_y,
+    knee_left_x: (right_sidebar as any)?.knee_left_x,
+    knee_left_y: (right_sidebar as any)?.knee_left_y,
+    knee_right_x: (right_sidebar as any)?.knee_right_x,
+    knee_right_y: (right_sidebar as any)?.knee_right_y,
+    foot_left_x: (right_sidebar as any)?.foot_left_x,
+    foot_left_y: (right_sidebar as any)?.foot_left_y,
+    foot_right_x: (right_sidebar as any)?.foot_right_x,
+    foot_right_y: (right_sidebar as any)?.foot_right_y
+  };
+
+  const lightValuesRef = (i: number) => {
+    return (right_sidebar as any)?.lights?.find((light: any) => light.id === i);
+  };
+
+  const onChangeLightValue = (i: number, key: string, value: any) => {
+    const updatedLights = (right_sidebar as any)?.lights?.map((light: any) => {
+      if (light?.id === i) {
+        return {
+          ...light,
+          [key]: value
+        };
+      }
+      return light;
+    });
+
+    updateNodeData(selectedNode!.id, {
+      right_sidebar: {
+        ...(right_sidebar as any),
+        lights: updatedLights,
+      },
+    });
+  };
+
+  const handleDone = async () => {
+    if (!canvasRef.current) {
+      toast.error('Canvas not available');
+      return;
+    }
+
+    if (!runwareService) {
+      toast.error('Runware service not available.');
+      return;
+    }
+
+    if (!selectedNode) {
+      toast.error('No node selected');
+      return;
+    }
+
+    try {
+      const canvas = canvasRef.current;
+      const dataUrl = canvas.toDataURL('image/png');
+      
+      // Update node immediately with the image data
+      updateNodeData(selectedNode.id, { 
+        image: dataUrl,
+        imageUrl: dataUrl,
+        isUploading: true 
+      });
+
+      // Convert data URL to File for upload
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], 'rive-capture.png', { type: 'image/png' });
+
+      // Upload to Runware
+      const imageUUID = await runwareService.uploadImage(file);
+      const imageURL = await runwareService.uploadImageForURL(file);
+      
+      // Update with Runware data
+      updateNodeData(selectedNode.id, { 
+        image: imageURL,
+        imageUrl: imageURL,
+        imageUUID: imageUUID,
+        isUploading: false 
+      });
+
+      toast.success('Image uploaded to Runware successfully!');
+      console.log('Image uploaded to Runware:', { imageUUID, imageURL });
+      
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      updateNodeData(selectedNode.id, { isUploading: false });
+      toast.error('Failed to upload image to Runware');
+    }
+  };
+
+  useEffect(() => {
+    if (!rive) return;
+    // Get canvas from rive instance
+    const riveCanvas = (rive as any).canvas as HTMLCanvasElement;
+    if (riveCanvas) {
+      canvasRef.current = riveCanvas;
+    }
+  }, [rive]);
+
   //when rive pose changes, update the right sidebar
   useEffect(() => {
-    if (!rive || !rive.viewModelInstance) return;
+    if (!rive || !rive.viewModelInstance || !isPose) return;
     const updatedPoseValues = {
       entire_location_x: entireLocationX,
       entire_location_y: entireLocationY,
@@ -303,6 +379,7 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
       },
     });
   }, [
+    isPose,
     entireLocationX, entireLocationY,
     shoulderLeftX, shoulderLeftY, shoulderRightX, shoulderRightY,
     elbowLeftX, elbowLeftY, elbowRightX, elbowRightY,
@@ -315,24 +392,23 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
 
   //when rive light changes, update the right sidebar
   useEffect(() => {
-    if (!rive || !rive.viewModelInstance) return;
+    if (!rive || !rive.viewModelInstance || !isLights) return;
 
     const newLights = right_sidebar.lights?.map((light: any, idx: number) => {
-      const g = lights[idx].lightGetters;
-
-      if (!g.selected) {
+      const control = lightControls[idx];
+      if (!control.selected.value) {
         return light; // skip update; preserve as-is
       }
 
       return {
         ...light,
-        selected: g.selected,
-        power: g.power,
-        width: g.width,
-        angle: g.angle,
-        locationX: g.lightLocationX,
-        locationY: g.lightLocationY,
-        ...(idx > 0 ? { add: light.add || g.lightAdded } : {}), // Only lights 2–4 have `add`
+        selected: control.selected.value,
+        power: control.power.value,
+        width: control.width.value,
+        angle: control.angle.value,
+        locationX: control.locationX.value,
+        locationY: control.locationY.value,
+        ...(idx > 0 ? { add: light.add || control.added.value } : {}), // Only lights 2–4 have `add`
       };
     }) || [];
 
@@ -347,10 +423,11 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
       },
     });
   }, [
-    lights[0].lightGetters.selected, lights[0].lightGetters.power, lights[0].lightGetters.width, lights[0].lightGetters.angle, lights[0].lightGetters.lightLocationX, lights[0].lightGetters.lightLocationY,
-    lights[1].lightGetters.selected, lights[1].lightGetters.power, lights[1].lightGetters.width, lights[1].lightGetters.angle, lights[1].lightGetters.lightLocationX, lights[1].lightGetters.lightLocationY, lights[1].lightGetters.lightAdded,
-    lights[2].lightGetters.selected, lights[2].lightGetters.power, lights[2].lightGetters.width, lights[2].lightGetters.angle, lights[2].lightGetters.lightLocationX, lights[2].lightGetters.lightLocationY, lights[2].lightGetters.lightAdded,
-    lights[3].lightGetters.selected, lights[3].lightGetters.power, lights[3].lightGetters.width, lights[3].lightGetters.angle, lights[3].lightGetters.lightLocationX, lights[3].lightGetters.lightLocationY, lights[3].lightGetters.lightAdded,
+    isLights,
+    ...lightControls.flatMap(control => [
+      control.selected.value, control.power.value, control.width.value, 
+      control.angle.value, control.locationX.value, control.locationY.value, control.added.value
+    ])
   ]);
 
   //initialize values for pose and light upon rendering/node select 
@@ -406,101 +483,41 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
         const lightRef = lightValuesRef(i);
         if (!lightRef) continue;
 
-        lights[i - 1].lightSetters.setSelected(false);
-        lights[i - 1].lightSetters.setSize(lightRef.size ?? 100);
-        lights[i - 1].lightSetters.setWidth(lightRef.width ?? 100);
-        lights[i - 1].lightSetters.setPower(lightRef.power ?? 100);
+        const control = lightControls[i - 1];
+        control.selected.setValue(false);
+        control.size.setValue(lightRef.size ?? 100);
+        control.width.setValue(lightRef.width ?? 100);
+        control.power.setValue(lightRef.power ?? 100);
 
         const { r, g, b } = hexToRGB((lightRef.color ?? "#ffffff").toString());
-        lights[i - 1].lightSetters.setRgb(r, g, b);
+        control.color.setRgb(r, g, b);
 
-        lights[i - 1].lightSetters.setAngle(lightRef.angle ?? 0);
-        lights[i - 1].lightSetters.setLightLocationX(lightRef.locationX ?? 250);
-        lights[i - 1].lightSetters.setLightLocationY(lightRef.locationY ?? 250);
+        control.angle.setValue(lightRef.angle ?? 0);
+        control.locationX.setValue(lightRef.locationX ?? 250);
+        control.locationY.setValue(lightRef.locationY ?? 250);
       }
 
       for(let i = 2; i <=4; i++){
         const lightRef = lightValuesRef(i)
         if(!lightRef) continue;
-        lights[i-1].lightSetters.setLightAdded(lightRef.add ?? false)
+        lightControls[i-1].added.setValue(lightRef.add ?? false)
       }
     }
     
     // Mark as initialized after setting initial values
     isInitializedRef.current = true;
-  }, [rive]);
-
-  useEffect(() => {
-    if (!rive) return;
-    // Get canvas from rive instance
-    const riveCanvas = (rive as any).canvas as HTMLCanvasElement;
-    if (riveCanvas) {
-      canvasRef.current = riveCanvas;
-    }
-  }, [rive]);
-
-  const handleDone = async () => {
-    if (!canvasRef.current) {
-      toast.error('Canvas not available');
-      return;
-    }
-
-    if (!runwareService) {
-      toast.error('Runware service not available.');
-      return;
-    }
-
-    if (!selectedNode) {
-      toast.error('No node selected');
-      return;
-    }
-
-    try {
-      const canvas = canvasRef.current;
-      const dataUrl = canvas.toDataURL('image/png');
-      
-      // Update node immediately with the image data
-      updateNodeData(selectedNode.id, { 
-        image: dataUrl,
-        imageUrl: dataUrl,
-        isUploading: true 
-      });
-
-      // Convert data URL to blob
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-      const file = new File([blob], 'rive-image.png', { type: 'image/png' });
-
-      // Upload to Runware
-      const imageURL = await runwareService.uploadImageForURL(file);
-      
-      // Update with Runware data
-      updateNodeData(selectedNode.id, { 
-        image: imageURL,
-        imageUrl: imageURL,
-        isUploading: false 
-      });
-
-      toast.success('Image uploaded to Runware successfully!');
-      console.log('Image uploaded to Runware:', { imageURL });
-      
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      updateNodeData(selectedNode.id, { isUploading: false });
-      toast.error('Failed to upload image to Runware');
-    }
-  };
+  }, [rive, isPose, isLights]);
 
   //when click done in lights, set export version to true and download image
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !isInitializedRef.current) return;
+    if (!canvas || !isInitializedRef.current || !isLights) return;
 
     // User done editing - only trigger after initialization
-    if (editingLights === false && isLights) {
+    if (editingLights === false) {
       
-       for(let i=1; i<=4; i++){
-        lights[i-1].lightSetters.setSelected(false)
+       for(let i=0; i<4; i++){
+        lightControls[i].selected.setValue(false)
       }
 
       setExportVersion(true);
@@ -515,15 +532,15 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
     if (editingLights === true) {
       setExportVersion(false);
     }
-  }, [editingLights]);
+  }, [editingLights, isLights]);
 
   //when export version is true, upload screenshot for pose
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !selectedNode || !isInitializedRef.current) return;
+    if (!canvas || !selectedNode || !isInitializedRef.current || !isPose) return;
 
     // Only trigger after initialization and when user manually sets export version
-    if (exportVersion === true && isPose) {
+    if (exportVersion === true) {
       const timer = setTimeout(() => {
         handleDone();
         setExportVersion(false);
@@ -532,8 +549,6 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
       return () => clearTimeout(timer);
     }
   }, [exportVersion, selectedNode, isPose]);
-
-  if (!rivePath || !selectedNode) return null;
 
   return (
     <div className="mb-4">
@@ -606,14 +621,14 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
           </div>
 
           {(() => {
-            const selectedIndex = [0, 1, 2, 3].find(i => lights[i].lightGetters.selected);
-            const ref = lightValuesRef(selectedIndex !== undefined ? selectedIndex + 1 : 1); // default to 1-based ID
-            const lightSetters = lights[selectedIndex ?? 0].lightSetters;
+            const selectedIndex = lightControls.findIndex(control => control.selected.value);
+            const ref = lightValuesRef(selectedIndex !== -1 ? selectedIndex + 1 : 1); // default to 1-based ID
+            const control = lightControls[selectedIndex] || lightControls[0];
 
             return (
               <div className="p-2 border border-gray-700 rounded-lg">
                 <div className="mb-4 text-[#9e9e9e] text-md font-medium">
-                  Editing Light {selectedIndex !== undefined ? selectedIndex + 1 : "(none selected)"}
+                  Editing Light {selectedIndex !== -1 ? selectedIndex + 1 : "(none selected)"}
                 </div>
 
                 {["size", "width", "power"].map((key) => (
@@ -632,9 +647,11 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
                         max={100}
                         step={1}
                         onChange={(val) => {
-                          if (selectedIndex === undefined) return;
-                          const setter = lightSetters[`set${key.charAt(0).toUpperCase() + key.slice(1)}` as keyof typeof lightSetters] as (val: number) => void;
-                          setter(val);
+                          if (selectedIndex === -1) return;
+                          const controlKey = key as keyof typeof control;
+                          if (controlKey in control && 'setValue' in control[controlKey]) {
+                            (control[controlKey] as any).setValue(val);
+                          }
                           onChangeLightValue(selectedIndex + 1, key, val);
                         }}
                       />
@@ -648,9 +665,9 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
                     type="color"
                     value={ref?.color ?? "#ffffff"}
                     onChange={(e) => {
-                      if (selectedIndex === undefined) return;
+                      if (selectedIndex === -1) return;
                       const { r, g, b } = hexToRGB(e.target.value);
-                      lightSetters.setRgb(r, g, b);
+                      control.color.setRgb(r, g, b);
                       onChangeLightValue(selectedIndex + 1, "color", e.target.value);
                     }}
                     className="w-[30px] h-[30px] p-0 border-none bg-transparent rounded-full"
