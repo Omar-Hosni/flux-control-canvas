@@ -56,7 +56,6 @@ const CustomSlider = ({
 
 export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
   const { nodes, updateNodeData, runwareService, selectedNodeId } = useWorkflowStore();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
   // Find the selected node based on selectedNodeId
   const selectedNode = nodes.find(node => node.id === selectedNodeId);
@@ -68,6 +67,16 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
   const isLightNode = nodeType === 'lights' && (selectedNode.type?.includes('light') || (typeof selectedNode.data?.label === 'string' && selectedNode.data.label.toLowerCase().includes('light')));
   
   if (!isPoseNode && !isLightNode) return null;
+
+  const rivePath = nodeType.includes("pose")
+    ? "/pose.riv"
+    : nodeType.includes("lights")
+    ? "/lights.riv"
+    : null;
+    
+  if (!rivePath) return null;
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const right_sidebar = (selectedNode?.data as any)?.right_sidebar || {
     lights: [
@@ -156,12 +165,6 @@ export const RiveInput: React.FC<{ nodeType: string }> = ({ nodeType }) => {
     });
   };
 
-  const rivePath = nodeType.includes("pose")
-    ? "/pose.riv"
-    : nodeType.includes("lights")
-    ? "/lights.riv"
-    : null;
-    
   const artboard = nodeType.includes("lights") ? "Artboard" : "final for nover";
 
   const isPose = isPoseNode;
