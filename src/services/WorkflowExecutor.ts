@@ -427,7 +427,7 @@ export class WorkflowExecutor {
     const lightControlImages = inputImages.filter(imageUrl => {
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
       const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
-      return sourceNode?.type === 'controlNet' && sourceNode?.data.preprocessor === 'normal';
+      return sourceNode?.type === 'controlNet' && sourceNode?.data.preprocessor === 'seed';
     });
     
     const seedImages = inputImages.filter(imageUrl => {
@@ -520,7 +520,7 @@ export class WorkflowExecutor {
         .map(node => node!.data.imageUrl as string);
       
       const riveLightImages = riveControlNetNodes
-        .filter(node => node?.data.preprocessor === 'normal')
+        .filter(node => node?.data.preprocessor === 'seed')
         .map(node => node!.data.imageUrl as string);
       
       // Use pose images as ControlNet guide images
