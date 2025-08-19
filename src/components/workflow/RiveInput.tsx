@@ -386,7 +386,7 @@ function RiveControls({
       setHead(poseValuesRef.head ?? 0);
       setStroke(poseValuesRef.stroke ?? 50);
       setBallSize(poseValuesRef.ball_size ?? 50);
-      setExportVersion(poseValuesRef.export_version ?? false);
+      setExportVersion(false);
       setEntireLocationX(poseValuesRef.entire_location_x ?? 0);
       setEntireLocationY(poseValuesRef.entire_location_y ?? 0);
       setShoulderLeftX(poseValuesRef.shoulder_left_x ?? 0);
@@ -460,7 +460,7 @@ function RiveControls({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !selectedNode || !isPose) return;
+    if (!canvas || !selectedNode || !isInitializedRef.current || !isPose) return;
     if (exportVersion === true) {
       const t = setTimeout(() => { handleDone(); setExportVersion(false); }, 100);
       return () => clearTimeout(t);
