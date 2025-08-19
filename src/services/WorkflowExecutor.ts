@@ -423,6 +423,13 @@ export class WorkflowExecutor {
       return sourceNode?.type === 'rerendering';
     });
     
+    // Light control nodes should be treated as seedImage providers, not ControlNet
+    const lightControlImages = inputImages.filter(imageUrl => {
+      const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
+      const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
+      return sourceNode?.type === 'controlNet' && sourceNode?.data.preprocessor === 'light';
+    });
+    
     const seedImages = inputImages.filter(imageUrl => {
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
       const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
@@ -559,6 +566,12 @@ export class WorkflowExecutor {
     // Add processed tool images as seed images if no other seed image
     if (toolImages.length > 0 && !seedImages.length) {
       params.seedImage = toolImages[0];
+      params.strength = (node.data.strength as number) || 0.8;
+    }
+
+    // Use light control outputs as seed if none set yet
+    if (!params.seedImage && lightControlImages.length > 0) {
+      params.seedImage = lightControlImages[0];
       params.strength = (node.data.strength as number) || 0.8;
     }
 
