@@ -501,14 +501,24 @@ export class WorkflowExecutor {
     } else {
       // Check for ControlNet nodes with Rive-generated images (no input images)
       const controlNetNodes = connectedNodes.filter(n => n?.type === 'controlNet');
-      const riveControlNetImages = controlNetNodes
-        .filter(node => node?.data.imageUrl && !Object.values(inputs).some(input => 
+      const riveControlNetNodes = controlNetNodes.filter(node => 
+        node?.data.imageUrl && !Object.values(inputs).some(input => 
           Object.keys(inputs).find(key => inputs[key] === input) === node?.id
-        ))
+        )
+      );
+      
+      // Separate pose and light nodes
+      const rivePoseImages = riveControlNetNodes
+        .filter(node => node?.data.preprocessor === 'pose')
         .map(node => node!.data.imageUrl as string);
       
-      if (riveControlNetImages.length > 0) {
-        params.controlNet = riveControlNetImages.map((imageUrl, index) => ({
+      const riveLightImages = riveControlNetNodes
+        .filter(node => node?.data.preprocessor === 'light')
+        .map(node => node!.data.imageUrl as string);
+      
+      // Use pose images as ControlNet guide images
+      if (rivePoseImages.length > 0) {
+        params.controlNet = rivePoseImages.map((imageUrl, index) => ({
           model: 'runware:29@1',
           guideImage: imageUrl,
           weight: 1,
@@ -516,6 +526,12 @@ export class WorkflowExecutor {
           endStep: Math.max(1, (params.steps || 28) - 1),
           controlMode: 'balanced'
         }));
+      }
+      
+      // Use light images as seed images
+      if (riveLightImages.length > 0 && !seedImages.length) {
+        params.seedImage = riveLightImages[0];
+        params.strength = (node.data.strength as number) || 0.8;
       }
     }
 
