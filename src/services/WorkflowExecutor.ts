@@ -498,6 +498,25 @@ export class WorkflowExecutor {
         endStep: Math.max(1, (params.steps || 28) - 1),
         controlMode: 'balanced'
       }));
+    } else {
+      // Check for ControlNet nodes with Rive-generated images (no input images)
+      const controlNetNodes = connectedNodes.filter(n => n?.type === 'controlNet');
+      const riveControlNetImages = controlNetNodes
+        .filter(node => node?.data.imageUrl && !Object.values(inputs).some(input => 
+          Object.keys(inputs).find(key => inputs[key] === input) === node?.id
+        ))
+        .map(node => node!.data.imageUrl as string);
+      
+      if (riveControlNetImages.length > 0) {
+        params.controlNet = riveControlNetImages.map((imageUrl, index) => ({
+          model: 'runware:29@1',
+          guideImage: imageUrl,
+          weight: 1,
+          startStep: 1,
+          endStep: Math.max(1, (params.steps || 28) - 1),
+          controlMode: 'balanced'
+        }));
+      }
     }
 
     // Add IP adapters for rerendering images
