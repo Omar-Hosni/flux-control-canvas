@@ -104,10 +104,18 @@ export class WorkflowExecutor {
 
   private async processControlNet(node: Node, inputs: Record<string, string>): Promise<string | null> {
     const inputImageUrl = Object.values(inputs)[0];
-    if (!inputImageUrl) return null;
+    
+    // If no input image, use the Rive-generated pose image from node data
+    if (!inputImageUrl) {
+      // For pose nodes with Rive-generated images, return the stored imageURL to be used as guideImage
+      if (node.data.imageUrl) {
+        return node.data.imageUrl as string;
+      }
+      return null;
+    }
 
     try {
-      // Create a temporary file object from URL for preprocessing
+      // If there is an input image, preprocess it as usual
       const response = await fetch(inputImageUrl);
       const blob = await response.blob();
       const file = new File([blob], 'input.jpg', { type: 'image/jpeg' });
