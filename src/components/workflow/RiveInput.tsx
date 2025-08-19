@@ -473,45 +473,49 @@ function RiveControls({
       {isPose && (
         <div className="text-white text-sm space-y-4 mt-4">
           {[
-            { label: "Export Version", type: "checkbox", value: poseValuesRef?.export_version ?? false, onChange: (val: boolean) => {
-              setExportVersion(val);
-              updateNodeData(selectedNode.id, { right_sidebar: { ...right_sidebar, export_version: val } });
-            }},
             { label: "Zooming", type: "slider", value: poseValuesRef.zooming ?? 100, set: setZooming, key: "zooming" },
             { label: "Neck", type: "slider", value: poseValuesRef.neck ?? 50, set: setNeck, key: "neck" },
             { label: "Head", type: "slider", value: poseValuesRef.head ?? 0, set: setHead, key: "head" },
           ].map((item, idx) => (
             <div key={idx} className="mb-4 flex items-center justify-between w-full">
               <label className="text-md text-[#9e9e9e]">{item.label}</label>
-              {item.type === "checkbox" ? (
-                <input type="checkbox" checked={item.value} onChange={(e) => item.onChange!(e.target.checked)} />
-              ) : (
-                <div className="flex items-center">
-                  <input
-                    value={`${item.value}%`}
-                    type="text"
-                    className="mr-2 text-sm text-center w-[60px] h-[30px] rounded-full bg-[#191919] border border-[#2a2a2a]"
-                    readOnly
-                  />
-                  <CustomSlider
-                    value={item.value}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onChange={(val) => {
-                      item.set!(val);
-                      updateNodeData(selectedNode.id, {
-                        right_sidebar: {
-                          ...right_sidebar,
-                          [item.key!]: val,
-                        },
-                      });
-                    }}
-                  />
-                </div>
-              )}
+              <div className="flex items-center">
+                <input
+                  value={`${item.value}%`}
+                  type="text"
+                  className="mr-2 text-sm text-center w-[60px] h-[30px] rounded-full bg-[#191919] border border-[#2a2a2a]"
+                  readOnly
+                />
+                <CustomSlider
+                  value={item.value}
+                  min={0}
+                  max={100}
+                  step={1}
+                  onChange={(val) => {
+                    item.set!(val);
+                    updateNodeData(selectedNode.id, {
+                      right_sidebar: {
+                        ...right_sidebar,
+                        [item.key!]: val,
+                      },
+                    });
+                  }}
+                />
+              </div>
             </div>
           ))}
+          
+          <div className="mt-6 pt-4 border-t border-gray-700">
+            <button
+              onClick={() => {
+                setExportVersion(true);
+                updateNodeData(selectedNode.id, { right_sidebar: { ...right_sidebar, export_version: true } });
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+            >
+              Done
+            </button>
+          </div>
         </div>
       )}
 
