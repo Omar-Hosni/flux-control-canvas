@@ -408,7 +408,7 @@ export class WorkflowExecutor {
     const controlNetImages = inputImages.filter(imageUrl => {
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
       const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
-      return sourceNode?.type === 'controlNet';
+      return sourceNode?.type === 'controlNet' && sourceNode?.data.preprocessor !== 'light';
     });
     
     const toolImages = inputImages.filter(imageUrl => {
