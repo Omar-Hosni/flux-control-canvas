@@ -408,7 +408,7 @@ export class WorkflowExecutor {
     const controlNetImages = inputImages.filter(imageUrl => {
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
       const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
-      return sourceNode?.type === 'controlNet' && sourceNode?.data.preprocessor !== 'light';
+      return sourceNode?.type === 'controlNet' && sourceNode?.data.preprocessor === 'openpose';
     });
     
     const toolImages = inputImages.filter(imageUrl => {
@@ -427,7 +427,7 @@ export class WorkflowExecutor {
     const lightControlImages = inputImages.filter(imageUrl => {
       const sourceNodeId = Object.keys(inputs).find(key => inputs[key] === imageUrl);
       const sourceNode = connectedNodes.find(n => n?.id === sourceNodeId);
-      return sourceNode?.type === 'controlNet' && sourceNode?.data.preprocessor === 'light';
+      return sourceNode?.type === 'controlNet' && sourceNode?.data.preprocessor === 'normal';
     });
     
     const seedImages = inputImages.filter(imageUrl => {
@@ -516,11 +516,11 @@ export class WorkflowExecutor {
       
       // Separate pose and light nodes
       const rivePoseImages = riveControlNetNodes
-        .filter(node => node?.data.preprocessor === 'pose')
+        .filter(node => node?.data.preprocessor === 'openpose')
         .map(node => node!.data.imageUrl as string);
       
       const riveLightImages = riveControlNetNodes
-        .filter(node => node?.data.preprocessor === 'light')
+        .filter(node => node?.data.preprocessor === 'normal')
         .map(node => node!.data.imageUrl as string);
       
       // Use pose images as ControlNet guide images
