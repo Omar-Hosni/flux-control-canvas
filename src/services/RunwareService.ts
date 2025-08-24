@@ -882,5 +882,12 @@ export const CONTROL_NET_PREPROCESSORS: ControlNetPreprocessor[] = [
     description: "Generates surface normal information",
     taskType: "imageControlNetPreProcess",
     preprocessor: "normalbae"
+  },
+  {
+    id: "segments",
+    name: "Segmentation",
+    description: "Segments objects in the image",
+    taskType: "imageControlNetPreProcess",
+    preprocessor: "seg"
   }
 ];

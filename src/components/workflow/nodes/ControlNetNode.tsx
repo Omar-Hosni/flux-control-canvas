@@ -3,7 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Zap, Users, Layers, Eye } from 'lucide-react';
+import { Zap, Users, Layers, Eye, Grid3x3 } from 'lucide-react';
 import { useWorkflowStore } from '@/stores/workflowStore';
 
 interface ControlNetNodeProps {
@@ -19,7 +19,8 @@ const getPreprocessorIcon = (preprocessor: string) => {
     case 'canny': return <Zap className="w-3 h-3 text-white" />;
     case 'depth': return <Layers className="w-3 h-3 text-white" />;
     case 'openpose': return <Users className="w-3 h-3 text-white" />;
-    case 'normal': return <Eye className="w-3 h-3 text-white" />;
+    case 'normalbae': return <Eye className="w-3 h-3 text-white" />;
+    case 'seg': return <Grid3x3 className="w-3 h-3 text-white" />;
     default: return <Zap className="w-3 h-3 text-white" />;
   }
 };
@@ -29,7 +30,8 @@ const getPreprocessorColor = (preprocessor: string) => {
     case 'canny': return 'from-purple-500 to-pink-500';
     case 'depth': return 'from-blue-500 to-cyan-500';
     case 'openpose': return 'from-green-500 to-emerald-500';
-    case 'normal': return 'from-orange-500 to-yellow-500';
+    case 'normalbae': return 'from-orange-500 to-yellow-500';
+    case 'seg': return 'from-red-500 to-rose-500';
     default: return 'from-purple-500 to-pink-500';
   }
 };

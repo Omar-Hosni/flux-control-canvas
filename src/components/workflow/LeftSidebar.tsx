@@ -20,7 +20,8 @@ import {
   Crop,
   Cpu,
   Settings,
-  MonitorSpeaker
+  MonitorSpeaker,
+  Grid3x3
 } from 'lucide-react';
 
 interface LeftSidebarProps {
@@ -40,9 +41,10 @@ export const LeftSidebar = ({ onAddNode }: LeftSidebarProps) => {
       title: 'ControlNet',
       nodes: [
         { type: 'controlNet', label: 'Pose', icon: Users, data: { label: 'Pose Control', preprocessor: 'openpose' } },
-        { type: 'controlNet', label: 'Edge', icon: Zap, data: { label: 'Edge Control', preprocessor: 'canny' } },
+        { type: 'controlNet', label: 'Canny', icon: Zap, data: { label: 'Canny Edge', preprocessor: 'canny' } },
         { type: 'controlNet', label: 'Depth', icon: Layers, data: { label: 'Depth Control', preprocessor: 'depth' } },
-        { type: 'controlNet', label: 'Light', icon: Eye, data: { label: 'Light Control', preprocessor: 'normal' } },
+        { type: 'controlNet', label: 'Normal', icon: Eye, data: { label: 'Normal Map', preprocessor: 'normalbae' } },
+        { type: 'controlNet', label: 'Segments', icon: Grid3x3, data: { label: 'Segmentation', preprocessor: 'seg' } },
       ]
     },
     {
