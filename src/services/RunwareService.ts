@@ -124,6 +124,7 @@ export interface OutpaintParams {
   positivePrompt: string;
   width: number;
   height: number;
+  strength: number;
   outpaint: {
     top: number;
     right: number;
@@ -740,6 +741,7 @@ export class RunwareService {
         seedImage: params.seedImage,
         width: params.width,
         height: params.height,
+        strength: 0.9,
         outpaint: params.outpaint
       }];
 
