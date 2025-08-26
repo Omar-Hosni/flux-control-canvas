@@ -58,6 +58,12 @@ const Index = () => {
   const [maskImage, setMaskImage] = useState<File | null>(null);
   const [inpaintPrompt, setInpaintPrompt] = useState<string>("");
   const [outpaintPrompt, setOutpaintPrompt] = useState<string>("");
+  const [outpaintWidth, setOutpaintWidth] = useState<number>(1280);
+  const [outpaintHeight, setOutpaintHeight] = useState<number>(1280);
+  const [outpaintTop, setOutpaintTop] = useState<number>(0);
+  const [outpaintRight, setOutpaintRight] = useState<number>(0);
+  const [outpaintBottom, setOutpaintBottom] = useState<number>(0);
+  const [outpaintLeft, setOutpaintLeft] = useState<number>(0);
   
   // Flux Kontext states
   const [fluxImage, setFluxImage] = useState<File | null>(null);
@@ -289,16 +295,20 @@ const Index = () => {
             toast.error('Please provide a prompt for outpainting');
             return;
           }
+          if ((outpaintWidth % 64 !== 0) || (outpaintHeight % 64 !== 0) || outpaintWidth < 128 || outpaintWidth > 2048 || outpaintHeight < 128 || outpaintHeight > 2048) {
+            toast.error('Width/Height must be 128-2048 and multiples of 64');
+            return;
+          }
           result = await runwareService.outpaintImage({
             seedImage: uploadedImageId,
             positivePrompt: outpaintPrompt || "__BLANK__",
-            width: 1280, // This should come from UI but Index.tsx doesn't have outpaint tool UI
-            height: 1280,
+            width: outpaintWidth,
+            height: outpaintHeight,
             outpaint: {
-              top: 256,
-              right: 256, 
-              bottom: 256,
-              left: 256
+              top: outpaintTop || 0,
+              right: outpaintRight || 0,
+              bottom: outpaintBottom || 0,
+              left: outpaintLeft || 0
             }
           });
           break;
@@ -1106,6 +1116,83 @@ const Index = () => {
                     
                     {toolType === 'outpaint' && (
                       <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium">Width</Label>
+                            <Input
+                              type="number"
+                              value={outpaintWidth}
+                              onChange={(e) => setOutpaintWidth(Number(e.target.value))}
+                              min={128}
+                              max={2048}
+                              step={64}
+                              className="h-10"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium">Height</Label>
+                            <Input
+                              type="number"
+                              value={outpaintHeight}
+                              onChange={(e) => setOutpaintHeight(Number(e.target.value))}
+                              min={128}
+                              max={2048}
+                              step={64}
+                              className="h-10"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium">Outpaint Values (px)</Label>
+                          <div className="grid grid-cols-2 gap-4 mt-2">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Top</Label>
+                              <Input
+                                type="number"
+                                value={outpaintTop}
+                                onChange={(e) => setOutpaintTop(Number(e.target.value))}
+                                min={0}
+                                step={64}
+                                className="h-10"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Right</Label>
+                              <Input
+                                type="number"
+                                value={outpaintRight}
+                                onChange={(e) => setOutpaintRight(Number(e.target.value))}
+                                min={0}
+                                step={64}
+                                className="h-10"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Bottom</Label>
+                              <Input
+                                type="number"
+                                value={outpaintBottom}
+                                onChange={(e) => setOutpaintBottom(Number(e.target.value))}
+                                min={0}
+                                step={64}
+                                className="h-10"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Left</Label>
+                              <Input
+                                type="number"
+                                value={outpaintLeft}
+                                onChange={(e) => setOutpaintLeft(Number(e.target.value))}
+                                min={0}
+                                step={64}
+                                className="h-10"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
                         <div>
                           <Label className="text-sm font-medium">Outpaint Prompt</Label>
                           <Textarea
