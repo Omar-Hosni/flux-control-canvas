@@ -378,6 +378,7 @@ export class WorkflowExecutor {
             positivePrompt: (node.data.outpaintPrompt as string) || "__BLANK__",
             width: (node.data.width as number) || 1280,
             height: (node.data.height as number) || 1280,
+            strength: 0.8,
             outpaint: {
               top: (node.data.outpaintTop as number) || 0,
               right: (node.data.outpaintRight as number) || 0,

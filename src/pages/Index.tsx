@@ -304,6 +304,7 @@ const Index = () => {
             positivePrompt: outpaintPrompt || "__BLANK__",
             width: outpaintWidth,
             height: outpaintHeight,
+            strength: 0.8,
             outpaint: {
               top: outpaintTop || 0,
               right: outpaintRight || 0,
