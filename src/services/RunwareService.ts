@@ -741,7 +741,7 @@ export class RunwareService {
         seedImage: params.seedImage,
         width: params.width,
         height: params.height,
-        strength: 0.9,
+        strength: params.strength || 0.9,
         outpaint: params.outpaint
       }];
 
