@@ -18,9 +18,6 @@ interface ToolNodeProps {
     upscaleFactor?: number;
     inpaintPrompt?: string;
     maskImage?: string;
-    outpaintPrompt?: string;
-    outpaintDirection?: string;
-    outpaintAmount?: number;
     width?: number;
     height?: number;
     outpaintTop?: number;

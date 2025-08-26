@@ -64,7 +64,7 @@ export const WorkflowToolbar = ({ onAddNode }: WorkflowToolbarProps) => {
         { type: 'tool', label: 'Remove BG', icon: Eraser, data: { label: 'Remove Background', toolType: 'removebg' } },
         { type: 'tool', label: 'Upscale', icon: ArrowUp, data: { label: 'Upscale', toolType: 'upscale', upscaleFactor: 2 } },
         { type: 'tool', label: 'Inpaint', icon: PaintBucket, data: { label: 'Inpaint', toolType: 'inpaint' } },
-        { type: 'tool', label: 'Outpaint', icon: Crop, data: { label: 'Outpaint', toolType: 'outpaint', outpaintDirection: 'all', outpaintAmount: 50 } },
+        { type: 'tool', label: 'Outpaint', icon: Crop, data: { label: 'Outpaint', toolType: 'outpaint', width: 1280, height: 1280, outpaintTop: 0, outpaintRight: 0, outpaintBottom: 0, outpaintLeft: 0 } },
       ]
     },
     {

@@ -57,8 +57,6 @@ const Index = () => {
   const [upscaleFactor, setUpscaleFactor] = useState<number>(2);
   const [maskImage, setMaskImage] = useState<File | null>(null);
   const [inpaintPrompt, setInpaintPrompt] = useState<string>("");
-  const [outpaintDirection, setOutpaintDirection] = useState<'up' | 'down' | 'left' | 'right' | 'all'>('all');
-  const [outpaintAmount, setOutpaintAmount] = useState<number>(50);
   const [outpaintPrompt, setOutpaintPrompt] = useState<string>("");
   
   // Flux Kontext states
@@ -292,9 +290,9 @@ const Index = () => {
             return;
           }
           result = await runwareService.outpaintImage({
-            seedImage: uploadedImageId, // This is a URL
+            seedImage: uploadedImageId,
             positivePrompt: outpaintPrompt || "__BLANK__",
-            width: 1280,
+            width: 1280, // This should come from UI but Index.tsx doesn't have outpaint tool UI
             height: 1280,
             outpaint: {
               top: 256,
@@ -1108,36 +1106,6 @@ const Index = () => {
                     
                     {toolType === 'outpaint' && (
                       <>
-                        <div>
-                          <Label className="text-sm font-medium">Direction</Label>
-                          <Select value={outpaintDirection} onValueChange={(value: any) => setOutpaintDirection(value)}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="up">Up</SelectItem>
-                              <SelectItem value="down">Down</SelectItem>
-                              <SelectItem value="left">Left</SelectItem>
-                              <SelectItem value="right">Right</SelectItem>
-                              <SelectItem value="all">All Directions</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <Label className="text-sm font-medium">
-                            Amount: {outpaintAmount}px
-                          </Label>
-                          <Slider
-                            value={[outpaintAmount]}
-                            onValueChange={(value) => setOutpaintAmount(value[0])}
-                            max={200}
-                            min={10}
-                            step={10}
-                            className="mt-2"
-                          />
-                        </div>
-                        
                         <div>
                           <Label className="text-sm font-medium">Outpaint Prompt</Label>
                           <Textarea
