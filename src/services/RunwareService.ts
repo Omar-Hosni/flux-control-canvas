@@ -120,10 +120,16 @@ export interface InpaintParams {
 }
 
 export interface OutpaintParams {
-  inputImage: string;
+  seedImage: string;
   positivePrompt: string;
-  outpaintDirection: 'up' | 'down' | 'left' | 'right' | 'all';
-  outpaintAmount: number;
+  width: number;
+  height: number;
+  outpaint: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
   model?: string;
   numberResults?: number;
   outputFormat?: string;
@@ -724,16 +730,17 @@ export class RunwareService {
       const message = [{
         taskType: "imageInference",
         taskUUID,
-        model: params.model || "runware:100@1",
+        model: params.model || "runware:102@1",
         outputFormat: params.outputFormat || "JPEG",
-        steps: params.steps || 28,
+        steps: params.steps || 40,
         CFGScale: params.CFGScale || 3.5,
         includeCost: true,
         outputType: ["URL"],
-        positivePrompt: params.positivePrompt,
-        inputImage: params.inputImage,
-        outpaintDirection: params.outpaintDirection,
-        outpaintAmount: params.outpaintAmount
+        positivePrompt: params.positivePrompt || "__BLANK__",
+        seedImage: params.seedImage,
+        width: params.width,
+        height: params.height,
+        outpaint: params.outpaint
       }];
 
       console.log("Sending outpainting message:", message);

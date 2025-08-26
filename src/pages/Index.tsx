@@ -292,10 +292,16 @@ const Index = () => {
             return;
           }
           result = await runwareService.outpaintImage({
-            inputImage: uploadedImageId, // This is a URL
-            positivePrompt: outpaintPrompt,
-            outpaintDirection,
-            outpaintAmount
+            seedImage: uploadedImageId, // This is a URL
+            positivePrompt: outpaintPrompt || "__BLANK__",
+            width: 1280,
+            height: 1280,
+            outpaint: {
+              top: 256,
+              right: 256, 
+              bottom: 256,
+              left: 256
+            }
           });
           break;
         default:

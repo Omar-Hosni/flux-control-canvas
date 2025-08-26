@@ -130,7 +130,7 @@ export const ToolNode = memo(({ id, data }: ToolNodeProps) => {
                   value={data.width || 1280}
                   onChange={(e) => updateNodeData(id, { width: Number(e.target.value) })}
                   className="h-8 text-xs nodrag"
-                  min="512"
+                  min="128"
                   max="2048"
                   step="64"
                 />
@@ -142,7 +142,7 @@ export const ToolNode = memo(({ id, data }: ToolNodeProps) => {
                   value={data.height || 1280}
                   onChange={(e) => updateNodeData(id, { height: Number(e.target.value) })}
                   className="h-8 text-xs nodrag"
-                  min="512"
+                  min="128"
                   max="2048"
                   step="64"
                 />
@@ -156,7 +156,7 @@ export const ToolNode = memo(({ id, data }: ToolNodeProps) => {
                   <Label className="text-xs text-muted-foreground">Top</Label>
                   <Input
                     type="number"
-                    value={data.outpaintTop || 256}
+                    value={data.outpaintTop || 0}
                     onChange={(e) => updateNodeData(id, { outpaintTop: Number(e.target.value) })}
                     className="h-8 text-xs nodrag"
                     min="0"
@@ -167,7 +167,7 @@ export const ToolNode = memo(({ id, data }: ToolNodeProps) => {
                   <Label className="text-xs text-muted-foreground">Right</Label>
                   <Input
                     type="number"
-                    value={data.outpaintRight || 256}
+                    value={data.outpaintRight || 0}
                     onChange={(e) => updateNodeData(id, { outpaintRight: Number(e.target.value) })}
                     className="h-8 text-xs nodrag"
                     min="0"
@@ -178,7 +178,7 @@ export const ToolNode = memo(({ id, data }: ToolNodeProps) => {
                   <Label className="text-xs text-muted-foreground">Bottom</Label>
                   <Input
                     type="number"
-                    value={data.outpaintBottom || 256}
+                    value={data.outpaintBottom || 0}
                     onChange={(e) => updateNodeData(id, { outpaintBottom: Number(e.target.value) })}
                     className="h-8 text-xs nodrag"
                     min="0"
@@ -189,7 +189,7 @@ export const ToolNode = memo(({ id, data }: ToolNodeProps) => {
                   <Label className="text-xs text-muted-foreground">Left</Label>
                   <Input
                     type="number"
-                    value={data.outpaintLeft || 256}
+                    value={data.outpaintLeft || 0}
                     onChange={(e) => updateNodeData(id, { outpaintLeft: Number(e.target.value) })}
                     className="h-8 text-xs nodrag"
                     min="0"
