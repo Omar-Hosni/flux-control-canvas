@@ -63,7 +63,7 @@ export const LeftSidebar = ({ onAddNode }: LeftSidebarProps) => {
         { type: 'tool', label: 'Remove BG', icon: Eraser, data: { label: 'Remove Background', toolType: 'removebg' } },
         { type: 'tool', label: 'Upscale', icon: ArrowUp, data: { label: 'Upscale', toolType: 'upscale', upscaleFactor: 2 } },
         { type: 'tool', label: 'Inpaint', icon: PaintBucket, data: { label: 'Inpaint', toolType: 'inpaint' } },
-        { type: 'tool', label: 'Outpaint', icon: Crop, data: { label: 'Outpaint', toolType: 'outpaint', outpaintDirection: 'all', outpaintAmount: 50 } },
+        { type: 'tool', label: 'Outpaint', icon: Crop, data: { label: 'Outpaint', toolType: 'outpaint', width: 1280, height: 1280, outpaintTop: 256, outpaintRight: 256, outpaintBottom: 256, outpaintLeft: 256 } },
       ]
     },
     {

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Eraser, ArrowUp, PaintBucket, Crop, Play, Upload } from 'lucide-react';
 import { useWorkflowStore } from '@/stores/workflowStore';
 
@@ -20,6 +21,12 @@ interface ToolNodeProps {
     outpaintPrompt?: string;
     outpaintDirection?: string;
     outpaintAmount?: number;
+    width?: number;
+    height?: number;
+    outpaintTop?: number;
+    outpaintRight?: number;
+    outpaintBottom?: number;
+    outpaintLeft?: number;
   };
 }
 
@@ -115,49 +122,81 @@ export const ToolNode = memo(({ id, data }: ToolNodeProps) => {
       case 'outpaint':
         return (
           <div className="space-y-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">Direction</Label>
-              <Select
-                value={data.outpaintDirection || 'all'}
-                onValueChange={(value) => updateNodeData(id, { outpaintDirection: value })}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="up">Up</SelectItem>
-                  <SelectItem value="down">Down</SelectItem>
-                  <SelectItem value="left">Left</SelectItem>
-                  <SelectItem value="right">Right</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Width</Label>
+                <Input
+                  type="number"
+                  value={data.width || 1280}
+                  onChange={(e) => updateNodeData(id, { width: Number(e.target.value) })}
+                  className="h-8 text-xs nodrag"
+                  min="512"
+                  max="2048"
+                  step="64"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Height</Label>
+                <Input
+                  type="number"
+                  value={data.height || 1280}
+                  onChange={(e) => updateNodeData(id, { height: Number(e.target.value) })}
+                  className="h-8 text-xs nodrag"
+                  min="512"
+                  max="2048"
+                  step="64"
+                />
+              </div>
             </div>
+            
             <div>
-              <Label className="text-xs text-muted-foreground">Amount (px)</Label>
-              <Select
-                value={String(data.outpaintAmount || 50)}
-                onValueChange={(value) => updateNodeData(id, { outpaintAmount: Number(value) })}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="25">25px</SelectItem>
-                  <SelectItem value="50">50px</SelectItem>
-                  <SelectItem value="100">100px</SelectItem>
-                  <SelectItem value="200">200px</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Outpaint Prompt</Label>
-              <Textarea
-                value={data.outpaintPrompt || ''}
-                onChange={(e) => updateNodeData(id, { outpaintPrompt: e.target.value })}
-                placeholder="Describe the extension..."
-                className="text-xs h-16 nodrag"
-              />
+              <Label className="text-xs text-muted-foreground mb-2 block">Outpaint Values (px)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Top</Label>
+                  <Input
+                    type="number"
+                    value={data.outpaintTop || 256}
+                    onChange={(e) => updateNodeData(id, { outpaintTop: Number(e.target.value) })}
+                    className="h-8 text-xs nodrag"
+                    min="0"
+                    max="512"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Right</Label>
+                  <Input
+                    type="number"
+                    value={data.outpaintRight || 256}
+                    onChange={(e) => updateNodeData(id, { outpaintRight: Number(e.target.value) })}
+                    className="h-8 text-xs nodrag"
+                    min="0"
+                    max="512"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Bottom</Label>
+                  <Input
+                    type="number"
+                    value={data.outpaintBottom || 256}
+                    onChange={(e) => updateNodeData(id, { outpaintBottom: Number(e.target.value) })}
+                    className="h-8 text-xs nodrag"
+                    min="0"
+                    max="512"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Left</Label>
+                  <Input
+                    type="number"
+                    value={data.outpaintLeft || 256}
+                    onChange={(e) => updateNodeData(id, { outpaintLeft: Number(e.target.value) })}
+                    className="h-8 text-xs nodrag"
+                    min="0"
+                    max="512"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         );
