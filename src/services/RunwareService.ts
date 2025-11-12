@@ -929,17 +929,16 @@ export class RunwareService {
       await this.connectionPromise;
     }
 
-    const taskUUID = params.taskUUID || crypto.randomUUID();
+    const taskUUID = crypto.randomUUID();
     
     return new Promise((resolve, reject) => {
+      const { taskUUID: _, ...paramsWithoutTaskUUID } = params as any;
+      
       const message = [{
         taskType: "modelUpload",
         taskUUID,
-        ...params
+        ...paramsWithoutTaskUUID
       }];
-
-      // Remove taskUUID from the params since it's already at the top level
-      delete (message[0] as any).taskUUID;
 
       console.log("Sending model upload message:", message);
 
