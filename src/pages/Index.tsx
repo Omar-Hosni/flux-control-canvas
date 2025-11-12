@@ -24,7 +24,11 @@ import {
   type GeneratedImage, 
   type GenerateImageParams,
   type ImageToImageParams,
-  type FluxKontextParams
+  type FluxKontextParams,
+  type ModelUploadParams,
+  type ModelUploadCheckpointParams,
+  type ModelUploadLoraParams,
+  type ModelUploadControlNetParams
 } from '@/services/RunwareService';
 
 const Index = () => {
@@ -84,6 +88,24 @@ const Index = () => {
     weight: number;
   }
   const [fluxSelectedLoras, setFluxSelectedLoras] = useState<FluxLoRA[]>([]);
+  
+  // Model Upload states
+  const [uploadCategory, setUploadCategory] = useState<string>("checkpoint");
+  const [uploadArchitecture, setUploadArchitecture] = useState<string>("");
+  const [uploadFormat, setUploadFormat] = useState<string>("");
+  const [uploadAir, setUploadAir] = useState<string>("");
+  const [uploadUniqueId, setUploadUniqueId] = useState<string>("");
+  const [uploadName, setUploadName] = useState<string>("");
+  const [uploadVersion, setUploadVersion] = useState<string>("");
+  const [uploadDownloadURL, setUploadDownloadURL] = useState<string>("");
+  const [uploadDefaultWeight, setUploadDefaultWeight] = useState<number>(1.0);
+  const [uploadPrivate, setUploadPrivate] = useState<boolean>(false);
+  const [uploadHeroImageURL, setUploadHeroImageURL] = useState<string>("");
+  const [uploadTags, setUploadTags] = useState<string>("");
+  const [uploadTriggerWords, setUploadTriggerWords] = useState<string>("");
+  const [uploadShortDesc, setUploadShortDesc] = useState<string>("");
+  const [uploadComment, setUploadComment] = useState<string>("");
+  const [uploadConditioning, setUploadConditioning] = useState<string>("");
 
   const AVAILABLE_LORAS = [
     { name: 'None', model: 'none', weight: 1 },
@@ -559,7 +581,7 @@ const Index = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="texttoimage" className="gap-2">
               <Zap className="w-4 h-4" />
               Text-to-Image
@@ -579,6 +601,10 @@ const Index = () => {
             <TabsTrigger value="flux" className="gap-2">
               <Palette className="w-4 h-4" />
               Flux Kontext
+            </TabsTrigger>
+            <TabsTrigger value="modelupload" className="gap-2">
+              <Upload className="w-4 h-4" />
+              Model Upload
             </TabsTrigger>
           </TabsList>
           {/* Text-to-Image Tab */}
@@ -1588,6 +1614,332 @@ const Index = () => {
                   isGenerating={isGenerating}
                 />
               </div>
+            </div>
+          </TabsContent>
+
+          {/* Model Upload Tab */}
+          <TabsContent value="modelupload">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Card className="p-6 bg-ai-surface border-border shadow-card">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-gradient-primary">
+                    <Upload className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">Upload Model</h2>
+                    <p className="text-sm text-muted-foreground">Upload checkpoint, LoRA, or ControlNet</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label>Model Type</Label>
+                    <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="checkpoint">Checkpoint</SelectItem>
+                        <SelectItem value="lora">LoRA</SelectItem>
+                        <SelectItem value="controlnet">ControlNet</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Architecture</Label>
+                    <Input 
+                      value={uploadArchitecture} 
+                      onChange={(e) => setUploadArchitecture(e.target.value)}
+                      placeholder="e.g., sd15, sdxl, flux"
+                    />
+                  </div>
+
+                  {uploadCategory === "controlnet" && (
+                    <div>
+                      <Label>Conditioning</Label>
+                      <Input 
+                        value={uploadConditioning} 
+                        onChange={(e) => setUploadConditioning(e.target.value)}
+                        placeholder="e.g., canny, depth, pose"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <Label>Format</Label>
+                    <Input 
+                      value={uploadFormat} 
+                      onChange={(e) => setUploadFormat(e.target.value)}
+                      placeholder="e.g., safetensors, ckpt"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>AIR Code</Label>
+                    <Input 
+                      value={uploadAir} 
+                      onChange={(e) => setUploadAir(e.target.value)}
+                      placeholder="e.g., civitai:123456@789"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Unique Identifier</Label>
+                    <Input 
+                      value={uploadUniqueId} 
+                      onChange={(e) => setUploadUniqueId(e.target.value)}
+                      placeholder="Unique ID for this model"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Model Name</Label>
+                    <Input 
+                      value={uploadName} 
+                      onChange={(e) => setUploadName(e.target.value)}
+                      placeholder="Display name"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Version</Label>
+                    <Input 
+                      value={uploadVersion} 
+                      onChange={(e) => setUploadVersion(e.target.value)}
+                      placeholder="e.g., v1.0, v2.1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Download URL</Label>
+                    <Input 
+                      value={uploadDownloadURL} 
+                      onChange={(e) => setUploadDownloadURL(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+
+                  {uploadCategory !== "controlnet" && (
+                    <div>
+                      <Label>Default Weight</Label>
+                      <Input 
+                        type="number"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={uploadDefaultWeight} 
+                        onChange={(e) => setUploadDefaultWeight(parseFloat(e.target.value) || 1.0)}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <Label>Hero Image URL</Label>
+                    <Input 
+                      value={uploadHeroImageURL} 
+                      onChange={(e) => setUploadHeroImageURL(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Tags (comma-separated)</Label>
+                    <Input 
+                      value={uploadTags} 
+                      onChange={(e) => setUploadTags(e.target.value)}
+                      placeholder="tag1, tag2, tag3"
+                    />
+                  </div>
+
+                  {uploadCategory !== "controlnet" && (
+                    <div>
+                      <Label>Trigger Words</Label>
+                      <Textarea 
+                        value={uploadTriggerWords} 
+                        onChange={(e) => setUploadTriggerWords(e.target.value)}
+                        placeholder="Words that activate this model"
+                        rows={2}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <Label>Short Description</Label>
+                    <Textarea 
+                      value={uploadShortDesc} 
+                      onChange={(e) => setUploadShortDesc(e.target.value)}
+                      placeholder="Brief description"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Comment</Label>
+                    <Textarea 
+                      value={uploadComment} 
+                      onChange={(e) => setUploadComment(e.target.value)}
+                      placeholder="Additional notes"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="private"
+                      checked={uploadPrivate}
+                      onChange={(e) => setUploadPrivate(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <Label htmlFor="private">Private Model</Label>
+                  </div>
+
+                  <Button
+                    onClick={async () => {
+                      if (!runwareService) {
+                        toast.error('Please set API key first');
+                        return;
+                      }
+
+                      if (!uploadArchitecture || !uploadFormat || !uploadAir || !uploadUniqueId || 
+                          !uploadName || !uploadVersion || !uploadDownloadURL) {
+                        toast.error('Please fill in all required fields');
+                        return;
+                      }
+
+                      setIsGenerating(true);
+                      try {
+                        let params: ModelUploadParams;
+                        const tagsArray = uploadTags.split(',').map(t => t.trim()).filter(Boolean);
+
+                        if (uploadCategory === "checkpoint") {
+                          params = {
+                            category: "checkpoint",
+                            architecture: uploadArchitecture,
+                            format: uploadFormat,
+                            air: uploadAir,
+                            uniqueIdentifier: uploadUniqueId,
+                            name: uploadName,
+                            version: uploadVersion,
+                            downloadURL: uploadDownloadURL,
+                            defaultWeight: uploadDefaultWeight,
+                            private: uploadPrivate,
+                            heroImageURL: uploadHeroImageURL,
+                            tags: tagsArray,
+                            positiveTriggerWords: uploadTriggerWords,
+                            shortDescription: uploadShortDesc,
+                            comment: uploadComment
+                          } as ModelUploadCheckpointParams;
+                        } else if (uploadCategory === "lora") {
+                          params = {
+                            category: "lora",
+                            architecture: uploadArchitecture,
+                            format: uploadFormat,
+                            air: uploadAir,
+                            uniqueIdentifier: uploadUniqueId,
+                            name: uploadName,
+                            version: uploadVersion,
+                            downloadURL: uploadDownloadURL,
+                            defaultWeight: uploadDefaultWeight,
+                            private: uploadPrivate,
+                            heroImageURL: uploadHeroImageURL,
+                            tags: tagsArray,
+                            positiveTriggerWords: uploadTriggerWords,
+                            shortDescription: uploadShortDesc,
+                            comment: uploadComment
+                          } as ModelUploadLoraParams;
+                        } else {
+                          params = {
+                            category: "controlnet",
+                            architecture: uploadArchitecture,
+                            conditioning: uploadConditioning,
+                            format: uploadFormat,
+                            air: uploadAir,
+                            uniqueIdentifier: uploadUniqueId,
+                            name: uploadName,
+                            version: uploadVersion,
+                            downloadUrl: uploadDownloadURL,
+                            private: uploadPrivate,
+                            heroImageUrl: uploadHeroImageURL,
+                            tags: tagsArray,
+                            shortDescription: uploadShortDesc,
+                            comment: uploadComment
+                          } as ModelUploadControlNetParams;
+                        }
+
+                        const result = await runwareService.uploadModel(params);
+                        toast.success(result.message || 'Model uploaded successfully!');
+                        
+                        // Reset form
+                        setUploadArchitecture("");
+                        setUploadFormat("");
+                        setUploadAir("");
+                        setUploadUniqueId("");
+                        setUploadName("");
+                        setUploadVersion("");
+                        setUploadDownloadURL("");
+                        setUploadDefaultWeight(1.0);
+                        setUploadPrivate(false);
+                        setUploadHeroImageURL("");
+                        setUploadTags("");
+                        setUploadTriggerWords("");
+                        setUploadShortDesc("");
+                        setUploadComment("");
+                        setUploadConditioning("");
+                      } catch (error) {
+                        console.error('Model upload failed:', error);
+                        toast.error('Failed to upload model. Please try again.');
+                      } finally {
+                        setIsGenerating(false);
+                      }
+                    }}
+                    disabled={isGenerating}
+                    className="w-full"
+                  >
+                    {isGenerating ? 'Uploading...' : 'Upload Model'}
+                  </Button>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-ai-surface border-border shadow-card">
+                <h3 className="text-lg font-semibold mb-4">API Documentation</h3>
+                <div className="space-y-4 text-sm text-muted-foreground">
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-2">Model Types:</h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li><strong>Checkpoint:</strong> Full model weights</li>
+                      <li><strong>LoRA:</strong> Low-Rank Adaptation models</li>
+                      <li><strong>ControlNet:</strong> Conditional control models</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-2">Required Fields:</h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Architecture (e.g., sd15, sdxl, flux)</li>
+                      <li>Format (e.g., safetensors, ckpt)</li>
+                      <li>AIR Code (unique identifier)</li>
+                      <li>Unique Identifier</li>
+                      <li>Model Name & Version</li>
+                      <li>Download URL</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-2">ControlNet Specific:</h4>
+                    <p>The conditioning field specifies the type of control (e.g., canny, depth, pose)</p>
+                  </div>
+                  <div>
+                    <a 
+                      href="https://runware.ai/docs/en/image-inference/model-upload" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      View Full API Documentation →
+                    </a>
+                  </div>
+                </div>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>

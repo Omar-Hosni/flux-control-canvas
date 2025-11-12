@@ -144,6 +144,71 @@ export interface ProcessedImageResult {
   cost?: number;
 }
 
+export interface ModelUploadCheckpointParams {
+  taskUUID?: string;
+  category: "checkpoint";
+  architecture: string;
+  format: string;
+  air: string;
+  uniqueIdentifier: string;
+  name: string;
+  version: string;
+  downloadURL: string;
+  defaultWeight: number;
+  private: boolean;
+  heroImageURL: string;
+  tags: string[];
+  positiveTriggerWords: string;
+  shortDescription: string;
+  comment: string;
+}
+
+export interface ModelUploadLoraParams {
+  taskUUID?: string;
+  category: "lora";
+  architecture: string;
+  format: string;
+  air: string;
+  uniqueIdentifier: string;
+  name: string;
+  version: string;
+  downloadURL: string;
+  defaultWeight: number;
+  private: boolean;
+  heroImageURL: string;
+  tags: string[];
+  positiveTriggerWords: string;
+  shortDescription: string;
+  comment: string;
+}
+
+export interface ModelUploadControlNetParams {
+  taskUUID?: string;
+  category: "controlnet";
+  architecture: string;
+  conditioning: string;
+  format: string;
+  air: string;
+  uniqueIdentifier: string;
+  name: string;
+  version: string;
+  downloadUrl: string;
+  private: boolean;
+  heroImageUrl: string;
+  tags: string[];
+  shortDescription: string;
+  comment: string;
+}
+
+export type ModelUploadParams = ModelUploadCheckpointParams | ModelUploadLoraParams | ModelUploadControlNetParams;
+
+export interface ModelUploadResult {
+  taskType: string;
+  taskUUID: string;
+  success: boolean;
+  message?: string;
+}
+
 export class RunwareService {
   private ws: WebSocket | null = null;
   private apiKey: string | null = null;
@@ -853,6 +918,46 @@ export class RunwareService {
         lora
       });
     }
+  }
+
+  // Model upload
+  async uploadModel(params: ModelUploadParams): Promise<ModelUploadResult> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = params.taskUUID || crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "modelUpload",
+        taskUUID,
+        ...params
+      }];
+
+      // Remove taskUUID from the params since it's already at the top level
+      delete (message[0] as any).taskUUID;
+
+      console.log("Sending model upload message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve({
+            taskType: data.taskType,
+            taskUUID: data.taskUUID,
+            success: true,
+            message: data.message || "Model uploaded successfully"
+          });
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
   }
 
   disconnect() {
