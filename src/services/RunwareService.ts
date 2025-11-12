@@ -239,6 +239,31 @@ export class RunwareService {
           console.error("WebSocket error response:", response);
           const errorMessage = response.errorMessage || response.errors?.[0]?.message || "An error occurred";
           toast.error(errorMessage);
+          
+          // Reject any pending promises for this error
+          if (response.errors && Array.isArray(response.errors)) {
+            response.errors.forEach((error: any) => {
+              if (error.taskUUID && error.taskUUID !== "N/A") {
+                const callback = this.messageCallbacks.get(error.taskUUID);
+                if (callback) {
+                  callback({ error: true, errorMessage: error.message });
+                  this.messageCallbacks.delete(error.taskUUID);
+                }
+              }
+            });
+          }
+          
+          // If no specific taskUUID, reject the most recent callback as fallback
+          if (this.messageCallbacks.size > 0) {
+            const lastKey = Array.from(this.messageCallbacks.keys()).pop();
+            if (lastKey) {
+              const callback = this.messageCallbacks.get(lastKey);
+              if (callback) {
+                callback({ error: true, errorMessage });
+                this.messageCallbacks.delete(lastKey);
+              }
+            }
+          }
           return;
         }
 
