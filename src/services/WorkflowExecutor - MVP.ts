@@ -374,10 +374,17 @@ export class WorkflowExecutor {
 
         case 'outpaint':
           const outpaintResult = await this.runwareService.outpaintImage({
-            inputImage: inputImageUrl,
+            seedImage: inputImageUrl,
             positivePrompt: (node.data.outpaintPrompt as string) || 'extend the image naturally',
-            outpaintDirection: (node.data.outpaintDirection as 'up' | 'down' | 'left' | 'right' | 'all') || 'all',
-            outpaintAmount: (node.data.outpaintAmount as number) || 50
+            width: 1280,
+            height: 1280,
+            strength: 0.8,
+            outpaint: {
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0
+            }
           });
           return outpaintResult.imageURL;
 
