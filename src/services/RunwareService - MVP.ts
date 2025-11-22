@@ -120,17 +120,10 @@ export interface InpaintParams {
 }
 
 export interface OutpaintParams {
-  seedImage: string;
+  inputImage: string;
   positivePrompt: string;
-  width: number;
-  height: number;
-  strength: number;
-  outpaint: {
-    top: number;
-    right: number;
-    bottom: number;
-    left: number;
-  };
+  outpaintDirection: 'up' | 'down' | 'left' | 'right' | 'all';
+  outpaintAmount: number;
   model?: string;
   numberResults?: number;
   outputFormat?: string;
@@ -141,96 +134,6 @@ export interface OutpaintParams {
 export interface ProcessedImageResult {
   imageURL: string;
   taskType: string;
-  cost?: number;
-}
-
-export interface ModelUploadCheckpointParams {
-  taskUUID?: string;
-  category: "checkpoint";
-  architecture: string;
-  format: string;
-  air: string;
-  uniqueIdentifier: string;
-  name: string;
-  version: string;
-  downloadURL: string;
-  defaultWeight: number;
-  private: boolean;
-  heroImageURL: string;
-  tags: string[];
-  positiveTriggerWords: string;
-  shortDescription: string;
-  comment: string;
-}
-
-export interface ModelUploadLoraParams {
-  taskUUID?: string;
-  category: "lora";
-  architecture: string;
-  format: string;
-  air: string;
-  uniqueIdentifier: string;
-  name: string;
-  version: string;
-  downloadURL: string;
-  defaultWeight: number;
-  private: boolean;
-  heroImageURL: string;
-  tags: string[];
-  positiveTriggerWords: string;
-  shortDescription: string;
-  comment: string;
-}
-
-export interface ModelUploadControlNetParams {
-  taskUUID?: string;
-  category: "controlnet";
-  architecture: string;
-  conditioning: string;
-  format: string;
-  air: string;
-  uniqueIdentifier: string;
-  name: string;
-  version: string;
-  downloadUrl: string;
-  private: boolean;
-  heroImageUrl: string;
-  tags: string[];
-  shortDescription: string;
-  comment: string;
-}
-
-export type ModelUploadParams = ModelUploadCheckpointParams | ModelUploadLoraParams | ModelUploadControlNetParams;
-
-export interface ModelUploadResult {
-  taskType: string;
-  taskUUID: string;
-  success: boolean;
-  message?: string;
-}
-
-export interface CaptionParams {
-  taskType: "caption";
-  taskUUID: string;
-  inputImage: string;
-  model: string;
-  prompt?: string;
-}
-
-export interface TranscriptionParams {
-  taskType: "transcription";
-  taskUUID: string;
-  model: string;
-  inputs: {
-    video: string;
-  };
-}
-
-export interface CaptionResult {
-  taskType: string;
-  taskUUID: string;
-  caption?: string;
-  text?: string;
   cost?: number;
 }
 
@@ -264,31 +167,6 @@ export class RunwareService {
           console.error("WebSocket error response:", response);
           const errorMessage = response.errorMessage || response.errors?.[0]?.message || "An error occurred";
           toast.error(errorMessage);
-          
-          // Reject any pending promises for this error
-          if (response.errors && Array.isArray(response.errors)) {
-            response.errors.forEach((error: any) => {
-              if (error.taskUUID && error.taskUUID !== "N/A") {
-                const callback = this.messageCallbacks.get(error.taskUUID);
-                if (callback) {
-                  callback({ error: true, errorMessage: error.message });
-                  this.messageCallbacks.delete(error.taskUUID);
-                }
-              }
-            });
-          }
-          
-          // If no specific taskUUID, reject the most recent callback as fallback
-          if (this.messageCallbacks.size > 0) {
-            const lastKey = Array.from(this.messageCallbacks.keys()).pop();
-            if (lastKey) {
-              const callback = this.messageCallbacks.get(lastKey);
-              if (callback) {
-                callback({ error: true, errorMessage });
-                this.messageCallbacks.delete(lastKey);
-              }
-            }
-          }
           return;
         }
 
@@ -846,18 +724,16 @@ export class RunwareService {
       const message = [{
         taskType: "imageInference",
         taskUUID,
-        model: params.model || "runware:102@1",
+        model: params.model || "runware:100@1",
         outputFormat: params.outputFormat || "JPEG",
-        steps: params.steps || 40,
+        steps: params.steps || 28,
         CFGScale: params.CFGScale || 3.5,
         includeCost: true,
         outputType: ["URL"],
-        positivePrompt: params.positivePrompt || "__BLANK__",
-        seedImage: params.seedImage,
-        width: params.width,
-        height: params.height,
-        strength: params.strength || 0.9,
-        outpaint: params.outpaint
+        positivePrompt: params.positivePrompt,
+        inputImage: params.inputImage,
+        outpaintDirection: params.outpaintDirection,
+        outpaintAmount: params.outpaintAmount
       }];
 
       console.log("Sending outpainting message:", message);
@@ -970,109 +846,6 @@ export class RunwareService {
     }
   }
 
-  // Model upload
-  async uploadModel(params: ModelUploadParams): Promise<ModelUploadResult> {
-    await this.connectionPromise;
-
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
-      this.connectionPromise = this.connect();
-      await this.connectionPromise;
-    }
-
-    const taskUUID = crypto.randomUUID();
-    
-    return new Promise((resolve, reject) => {
-      const { taskUUID: _, ...paramsWithoutTaskUUID } = params as any;
-      
-      const message = [{
-        taskType: "modelUpload",
-        taskUUID,
-        ...paramsWithoutTaskUUID
-      }];
-
-      console.log("Sending model upload message:", message);
-
-      this.messageCallbacks.set(taskUUID, (data) => {
-        if (data.error) {
-          reject(new Error(data.errorMessage));
-        } else {
-          resolve({
-            taskType: data.taskType,
-            taskUUID: data.taskUUID,
-            success: true,
-            message: data.message || "Model uploaded successfully"
-          });
-        }
-      });
-
-      this.ws.send(JSON.stringify(message));
-    });
-  }
-
-  // Image caption generation
-  async generateCaption(params: CaptionParams): Promise<CaptionResult> {
-    await this.connectionPromise;
-
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
-      this.connectionPromise = this.connect();
-      await this.connectionPromise;
-    }
-    
-    return new Promise((resolve, reject) => {
-      const message = [params];
-
-      console.log("Sending caption generation message:", message);
-
-      this.messageCallbacks.set(params.taskUUID, (data) => {
-        if (data.error) {
-          reject(new Error(data.errorMessage));
-        } else {
-          resolve({
-            taskType: data.taskType,
-            taskUUID: data.taskUUID,
-            caption: data.caption,
-            text: data.text,
-            cost: data.cost
-          });
-        }
-      });
-
-      this.ws.send(JSON.stringify(message));
-    });
-  }
-
-  // Video transcription
-  async generateTranscription(params: TranscriptionParams): Promise<CaptionResult> {
-    await this.connectionPromise;
-
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
-      this.connectionPromise = this.connect();
-      await this.connectionPromise;
-    }
-    
-    return new Promise((resolve, reject) => {
-      const message = [params];
-
-      console.log("Sending transcription generation message:", message);
-
-      this.messageCallbacks.set(params.taskUUID, (data) => {
-        if (data.error) {
-          reject(new Error(data.errorMessage));
-        } else {
-          resolve({
-            taskType: data.taskType,
-            taskUUID: data.taskUUID,
-            caption: data.caption,
-            text: data.text,
-            cost: data.cost
-          });
-        }
-      });
-
-      this.ws.send(JSON.stringify(message));
-    });
-  }
-
   disconnect() {
     if (this.ws) {
       this.ws.close();
@@ -1109,12 +882,5 @@ export const CONTROL_NET_PREPROCESSORS: ControlNetPreprocessor[] = [
     description: "Generates surface normal information",
     taskType: "imageControlNetPreProcess",
     preprocessor: "normalbae"
-  },
-  {
-    id: "segments",
-    name: "Segmentation",
-    description: "Segments objects in the image",
-    taskType: "imageControlNetPreProcess",
-    preprocessor: "seg"
   }
 ];

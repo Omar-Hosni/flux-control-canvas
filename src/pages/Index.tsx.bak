@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Brain, Zap, Settings, Workflow, Image as ImageIcon, Wand2, Palette, Upload, MessageSquare } from 'lucide-react';
+import { Brain, Zap, Settings, Workflow, Image as ImageIcon, Wand2, Palette, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { 
@@ -28,9 +28,7 @@ import {
   type ModelUploadParams,
   type ModelUploadCheckpointParams,
   type ModelUploadLoraParams,
-  type ModelUploadControlNetParams,
-  type CaptionParams,
-  type TranscriptionParams
+  type ModelUploadControlNetParams
 } from '@/services/RunwareService';
 
 const Index = () => {
@@ -108,14 +106,6 @@ const Index = () => {
   const [uploadShortDesc, setUploadShortDesc] = useState<string>("");
   const [uploadComment, setUploadComment] = useState<string>("");
   const [uploadConditioning, setUploadConditioning] = useState<string>("");
-
-  // Caption states
-  const [captionType, setCaptionType] = useState<string>("image");
-  const [captionImage, setCaptionImage] = useState<File | null>(null);
-  const [captionVideo, setCaptionVideo] = useState<File | null>(null);
-  const [captionModel, setCaptionModel] = useState<string>("runware:150@2");
-  const [captionPrompt, setCaptionPrompt] = useState<string>("");
-  const [captionResult, setCaptionResult] = useState<string>("");
 
   const AVAILABLE_LORAS = [
     { name: 'None', model: 'none', weight: 1 },
@@ -573,12 +563,6 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Link to="/simple">
-                <Button variant="outline" className="gap-2">
-                  <Workflow className="w-4 h-4" />
-                  Custom Generation
-                </Button>
-              </Link>
               <Link to="/workflow">
                 <Button variant="outline" className="gap-2">
                   <Workflow className="w-4 h-4" />
@@ -597,7 +581,7 @@ const Index = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="texttoimage" className="gap-2">
               <Zap className="w-4 h-4" />
               Text-to-Image
@@ -621,10 +605,6 @@ const Index = () => {
             <TabsTrigger value="modelupload" className="gap-2">
               <Upload className="w-4 h-4" />
               Model Upload
-            </TabsTrigger>
-            <TabsTrigger value="caption" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Caption
             </TabsTrigger>
           </TabsList>
           {/* Text-to-Image Tab */}
@@ -1956,244 +1936,6 @@ const Index = () => {
                       className="text-primary hover:underline inline-flex items-center gap-1"
                     >
                       View Full API Documentation →
-                    </a>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Caption Tab */}
-          <TabsContent value="caption">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card className="p-6 bg-ai-surface border-border shadow-card">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-gradient-primary">
-                    <MessageSquare className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">Caption & Transcription</h2>
-                    <p className="text-sm text-muted-foreground">Generate captions for images or transcribe videos</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label>Content Type</Label>
-                    <Select value={captionType} onValueChange={setCaptionType}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="image">Image Caption</SelectItem>
-                        <SelectItem value="video">Video Transcription</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {captionType === "image" ? (
-                    <>
-                      <div>
-                        <Label>Upload Image</Label>
-                        <Button
-                          variant="outline"
-                          className="w-full h-32 border-dashed"
-                          onClick={() => document.getElementById('caption-image-input')?.click()}
-                        >
-                          <Upload className="w-6 h-6 mr-2" />
-                          {captionImage ? captionImage.name : 'Choose Image'}
-                        </Button>
-                        <input
-                          id="caption-image-input"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => setCaptionImage(e.target.files?.[0] || null)}
-                          className="hidden"
-                        />
-                      </div>
-                      
-                      {captionImage && (
-                        <div className="border rounded-lg overflow-hidden">
-                          <img
-                            src={URL.createObjectURL(captionImage)}
-                            alt="Input"
-                            className="w-full h-48 object-cover"
-                          />
-                        </div>
-                      )}
-
-                      <div>
-                        <Label>Caption Model</Label>
-                        <Select value={captionModel} onValueChange={setCaptionModel}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="runware:150@2">General</SelectItem>
-                            <SelectItem value="runware:152@50">Age Detection</SelectItem>
-                            <SelectItem value="runware:152@2">Technical Analysis</SelectItem>
-                            <SelectItem value="runware:151@1">Content Identification</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label>Custom Prompt (Optional)</Label>
-                        <Textarea
-                          value={captionPrompt}
-                          onChange={(e) => setCaptionPrompt(e.target.value)}
-                          placeholder="Analyze the lighting, composition, and camera settings..."
-                          rows={3}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <Label>Upload Video</Label>
-                        <Button
-                          variant="outline"
-                          className="w-full h-32 border-dashed"
-                          onClick={() => document.getElementById('caption-video-input')?.click()}
-                        >
-                          <Upload className="w-6 h-6 mr-2" />
-                          {captionVideo ? captionVideo.name : 'Choose Video'}
-                        </Button>
-                        <input
-                          id="caption-video-input"
-                          type="file"
-                          accept="video/*"
-                          onChange={(e) => setCaptionVideo(e.target.files?.[0] || null)}
-                          className="hidden"
-                        />
-                      </div>
-                      
-                      {captionVideo && (
-                        <div className="border rounded-lg overflow-hidden">
-                          <video
-                            src={URL.createObjectURL(captionVideo)}
-                            className="w-full h-48 object-cover"
-                            controls
-                          />
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <Button
-                    onClick={async () => {
-                      if (!runwareService) {
-                        toast.error('Please set API key first');
-                        return;
-                      }
-
-                      if (captionType === "image" && !captionImage) {
-                        toast.error('Please select an image');
-                        return;
-                      }
-
-                      if (captionType === "video" && !captionVideo) {
-                        toast.error('Please select a video');
-                        return;
-                      }
-
-                      setIsGenerating(true);
-                      setCaptionResult("");
-                      
-                      try {
-                        let result;
-                        
-                        if (captionType === "image") {
-                          const uploadedImageId = await runwareService.uploadImage(captionImage!);
-                          
-                          const captionParams = {
-                            taskType: "caption" as const,
-                            taskUUID: crypto.randomUUID(),
-                            inputImage: uploadedImageId,
-                            model: captionModel,
-                            ...(captionPrompt && { prompt: captionPrompt })
-                          };
-                          
-                          result = await runwareService.generateCaption(captionParams);
-                        } else {
-                          const uploadedVideoId = await runwareService.uploadImage(captionVideo!);
-                          
-                          const transcriptionParams = {
-                            taskType: "transcription" as const,
-                            taskUUID: crypto.randomUUID(),
-                            model: "memories:1@1",
-                            inputs: {
-                              video: uploadedVideoId
-                            }
-                          };
-                          
-                          result = await runwareService.generateTranscription(transcriptionParams);
-                        }
-                        
-                        setCaptionResult(result.text || result.caption || 'No result returned');
-                        toast.success('Caption generated successfully!');
-                      } catch (error) {
-                        console.error('Caption generation failed:', error);
-                        toast.error('Failed to generate caption. Please try again.');
-                      } finally {
-                        setIsGenerating(false);
-                      }
-                    }}
-                    disabled={isGenerating || (captionType === "image" ? !captionImage : !captionVideo)}
-                    className="w-full"
-                  >
-                    {isGenerating ? 'Processing...' : (captionType === "image" ? 'Generate Caption' : 'Generate Transcription')}
-                  </Button>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-ai-surface border-border shadow-card">
-                <h3 className="text-lg font-semibold mb-4">Result</h3>
-                {captionResult ? (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-ai-surface-elevated rounded-lg border border-border">
-                      <p className="text-sm whitespace-pre-wrap">{captionResult}</p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(captionResult);
-                        toast.success('Copied to clipboard!');
-                      }}
-                      className="w-full"
-                    >
-                      Copy to Clipboard
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Upload {captionType === "image" ? "an image" : "a video"} and click generate to see the result</p>
-                  </div>
-                )}
-                
-                <div className="mt-6 space-y-4 text-sm text-muted-foreground">
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-2">Caption Models:</h4>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li><strong>General:</strong> Basic image description</li>
-                      <li><strong>Age Detection:</strong> Analyze age-related content</li>
-                      <li><strong>Technical Analysis:</strong> Camera settings and composition</li>
-                      <li><strong>Content Identification:</strong> Identify objects and scenes</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-2">Video Transcription:</h4>
-                    <p>Converts speech in videos to text using advanced AI models</p>
-                  </div>
-                  <div>
-                    <a 
-                      href="https://runware.ai/docs/en/tools/caption" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      View Caption API Documentation →
                     </a>
                   </div>
                 </div>

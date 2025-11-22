@@ -467,6 +467,7 @@ function RiveControls({
     }
   }, [exportVersion, selectedNode, isPose]);
 
+  console.log(rive?.viewModelInstance?.properties)
   // UI
   return (
     <>
