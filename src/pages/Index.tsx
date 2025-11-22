@@ -16,9 +16,9 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Brain, Zap, Settings, Workflow, Image as ImageIcon, Wand2, Palette, Upload, MessageSquare, Sparkles } from 'lucide-react';
-import { LiveEdits } from '@/components/LiveEdits';
 import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
+import { LiveEdits } from '@/components/LiveEdits';
 import { 
   RunwareService, 
   type PreprocessedImage, 
