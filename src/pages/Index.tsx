@@ -15,7 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Brain, Zap, Settings, Workflow, Image as ImageIcon, Wand2, Palette, Upload, MessageSquare } from 'lucide-react';
+import { Brain, Zap, Settings, Workflow, Image as ImageIcon, Wand2, Palette, Upload, MessageSquare, Sparkles } from 'lucide-react';
+import { LiveEdits } from '@/components/LiveEdits';
 import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { 
@@ -30,7 +31,8 @@ import {
   type ModelUploadLoraParams,
   type ModelUploadControlNetParams,
   type CaptionParams,
-  type TranscriptionParams
+  type TranscriptionParams,
+  type ControlNetPreprocessParams
 } from '@/services/RunwareService';
 
 const Index = () => {
@@ -625,6 +627,10 @@ const Index = () => {
             <TabsTrigger value="caption" className="gap-2">
               <MessageSquare className="w-4 h-4" />
               Caption
+            </TabsTrigger>
+            <TabsTrigger value="liveedits" className="gap-2">
+              <Wand2 className="w-4 h-4" />
+              Live Edits
             </TabsTrigger>
           </TabsList>
           {/* Text-to-Image Tab */}
@@ -2199,6 +2205,17 @@ const Index = () => {
                 </div>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Live Edits Tab */}
+          <TabsContent value="liveedits">
+            {runwareService ? (
+              <LiveEdits runwareService={runwareService} />
+            ) : (
+              <Card className="p-6 bg-ai-surface border-border shadow-card text-center">
+                <p className="text-muted-foreground">Please set up your API key first</p>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

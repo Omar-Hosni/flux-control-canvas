@@ -200,6 +200,16 @@ export interface ModelUploadControlNetParams {
   comment: string;
 }
 
+export interface ControlNetPreprocessParams {
+  inputImage: string;
+  preProcessorType: string;
+  height?: number;
+  width?: number;
+  outputType?: string[];
+  outputFormat?: string;
+  includeCost?: boolean;
+}
+
 export type ModelUploadParams = ModelUploadCheckpointParams | ModelUploadLoraParams | ModelUploadControlNetParams;
 
 export interface ModelUploadResult {
@@ -392,6 +402,47 @@ export class RunwareService {
       this.ws.send(JSON.stringify(message));
     });
   }
+
+  async preprocessControlNet(params: ControlNetPreprocessParams): Promise<PreprocessedImage> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+    
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageControlNetPreProcess",
+        taskUUID,
+        inputImage: params.inputImage,
+        preProcessorType: params.preProcessorType,
+        ...(params.height && { height: params.height }),
+        ...(params.width && { width: params.width }),
+        outputType: params.outputType || ["URL"],
+        outputFormat: params.outputFormat || "WEBP",
+        ...(params.includeCost !== undefined && { includeCost: params.includeCost })
+      }];
+
+      console.log("Sending ControlNet preprocessing message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve({
+            imageURL: data.guideImageURL || data.guideImageUUID,
+            preprocessor: params.preProcessorType
+          });
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
 
   // Upload image and get UUID for upscaling operations
   async uploadImage(imageFile: File): Promise<string> {
