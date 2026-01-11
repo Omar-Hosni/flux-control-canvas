@@ -38,12 +38,12 @@ const getProcessingIcon = (type: string) => {
 
 const getProcessingColor = (type: string) => {
   switch (type) {
-    case 'reimagine': return 'from-indigo-500 to-purple-500';
-    case 'reference': return 'from-pink-500 to-rose-500';
-    case 'rescene': return 'from-emerald-500 to-teal-500';
-    case 'reangle': return 'from-amber-500 to-orange-500';
-    case 'remix': return 'from-violet-500 to-purple-500';
-    default: return 'from-gray-500 to-gray-600';
+    case 'reimagine': return 'from-zinc-800 to-black';
+    case 'reference': return 'from-zinc-700 to-zinc-900';
+    case 'rescene': return 'from-zinc-600 to-zinc-800';
+    case 'reangle': return 'from-black to-zinc-800';
+    case 'remix': return 'from-zinc-900 to-black';
+    default: return 'from-zinc-800 to-zinc-900';
   }
 };
 
@@ -57,7 +57,7 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
         return (
           <div className="space-y-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Strength</Label>
+              <Label className="text-xs text-zinc-400">Strength</Label>
               <Slider
                 value={[data.strength || 0.6]}
                 onValueChange={(value) => updateNodeData(id, { strength: value[0] })}
@@ -66,11 +66,11 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
                 step={0.1}
                 className="w-full"
               />
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-zinc-500">
                 {((data.strength || 0.6) * 100).toFixed(0)}%
               </span>
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-zinc-500">
               Built-in prompt: "re-imagine image"
             </div>
           </div>
@@ -165,31 +165,31 @@ export const RerenderingNode = memo(({ id, data }: RerenderingNodeProps) => {
   };
 
   return (
-    <Card className="min-w-48 p-4 bg-ai-surface border-border shadow-card">
+    <Card className="min-w-48 p-4 bg-[#1a1a1a] border-2 border-zinc-800 hover:border-zinc-700 shadow-xl hover:shadow-2xl transition-all duration-200">
       <div className="flex items-center gap-2 mb-3">
-        <div className={`p-1.5 rounded bg-gradient-to-br ${getProcessingColor(data.rerenderingType)}`}>
+        <div className={`p-1.5 rounded bg-gradient-to-br ${getProcessingColor(data.rerenderingType)} border border-zinc-700`}>
           {getProcessingIcon(data.rerenderingType)}
         </div>
-        <h3 className="text-sm font-medium text-foreground">{data.label}</h3>
+        <h3 className="text-sm font-medium text-white">{data.label}</h3>
       </div>
 
       <div className="space-y-3">
         <Badge variant="secondary" className="text-xs">
           {data.rerenderingType === 'reimagine' ? 'Seed Image' : 'Re-rendering'}
         </Badge>
-        
+
         {renderSettings()}
       </div>
 
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-3 !h-3 !bg-gray-400 !border-2 !border-white"
+        className="!w-3 !h-3 !bg-zinc-400 !border-2 !border-zinc-900 hover:!scale-125 transition-transform"
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-3 !h-3 !bg-green-500 !border-2 !border-white"
+        className="!w-3 !h-3 !bg-white !border-2 !border-zinc-900 hover:!scale-125 transition-transform"
       />
     </Card>
   );

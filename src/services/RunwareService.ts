@@ -26,17 +26,40 @@ export interface GenerateImageParams {
   width?: number;
   height?: number;
   steps?: number;
+  // Extended parameters
+  vae?: string;
+  clipSkip?: number;
+  maskImage?: string;
+  maskMargin?: number;
+  // Advanced features
+  advancedFeatures?: {
+    layerDiffuse?: boolean;
+    hiresfix?: boolean;
+  };
+  // Extended accelerator options
   acceleratorOptions?: {
-    teaCache: boolean;
-    teaCacheDistance: number;
+    teaCache?: boolean;
+    teaCacheDistance?: number;
+    fbCache?: boolean;
+    fbCacheThreshold?: number;
+    deepCache?: boolean;
+    deepCacheInterval?: number;
+    deepCacheBranchId?: number;
+    cacheStartStep?: number;
+    cacheStartStepPercentage?: number;
+    cacheEndStep?: number;
+    cacheEndStepPercentage?: number;
+    cacheMaxConsecutiveSteps?: number;
   };
   controlNet?: Array<{
     model: string;
     guideImage: string;
-    weight: number;
-    startStep: number;
-    endStep: number;
-    controlMode: "balanced" | "prompt" | "controlnet";
+    weight?: number;
+    startStep?: number;
+    startStepPercentage?: number;
+    endStep?: number;
+    endStepPercentage?: number;
+    controlMode?: "balanced" | "prompt" | "controlnet";
   }>;
   seedImage?: string;
   ipAdapters?: IpAdapter[];
@@ -244,6 +267,88 @@ export interface CaptionResult {
   cost?: number;
 }
 
+export interface VideoInferenceParams {
+  positivePrompt?: string;
+  negativePrompt?: string;
+  model: string;
+  steps?: number;
+  CFGScale?: number;
+  scheduler?: string;
+  seed?: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+  fps?: number;
+  numberResults?: number;
+  outputFormat?: "MP4" | "WEBM" | "MOV";
+  outputType?: "URL"[];
+  outputQuality?: number;
+  inputImage?: string;
+  referenceImages?: string[];
+  inputAudios?: string[];
+  referenceVideos?: string[];
+  frameImages?: string[];
+  lora?: Array<{
+    model: string;
+    weight: number;
+    transformer?: "high" | "low" | "both";
+  }>;
+}
+
+export interface ImageMaskingParams {
+  inputImage: string;
+  model: string;  // runware:35@X variants
+  confidence?: number;  // 0-1, detection threshold
+  maxDetections?: number;  // limit number of detections
+  maskPadding?: number;  // pixels to extend/shrink mask
+  maskBlur?: number;  // pixels for blur fade effect
+  outputFormat?: "PNG" | "JPG" | "WEBP";
+  outputType?: ("URL" | "dataURI" | "base64Data")[];
+}
+
+export interface ImageMaskingResult {
+  taskType: string;
+  taskUUID: string;
+  inputImageUUID?: string;
+  maskImageURL?: string;
+  maskImageDataURI?: string;
+  maskImageBase64Data?: string;
+  maskImageUUID?: string;
+  detections: Array<{
+    x_min: number;
+    y_min: number;
+    x_max: number;
+    y_max: number;
+  }>;
+  cost?: number;
+}
+
+export interface VideoInferenceResult {
+  taskType: string;
+  taskUUID: string;
+  videoUUID: string;
+  videoURL: string;
+  seed: number;
+  cost?: number;
+}
+
+export interface VectorizeParams {
+  inputImage: string;
+  model: "recraft:1@1" | "picsart:1@1";
+  outputFormat?: "SVG";
+  outputType?: "URL" | "base64Data" | "dataURI";
+}
+
+export interface VectorizeResult {
+  taskType: string;
+  taskUUID: string;
+  imageUUID: string;
+  imageURL?: string;
+  imageBase64Data?: string;
+  imageDataURI?: string;
+  cost?: number;
+}
+
 export class RunwareService {
   private ws: WebSocket | null = null;
   private apiKey: string | null = null;
@@ -251,6 +356,8 @@ export class RunwareService {
   private messageCallbacks: Map<string, (data: any) => void> = new Map();
   private isAuthenticated: boolean = false;
   private connectionPromise: Promise<void> | null = null;
+  private authFailed: boolean = false;
+  private hasShownAuthError: boolean = false;
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -258,9 +365,14 @@ export class RunwareService {
   }
 
   private connect(): Promise<void> {
+    // Don't reconnect if auth has failed
+    if (this.authFailed) {
+      return Promise.reject(new Error("Authentication failed - invalid API key"));
+    }
+
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(API_ENDPOINT);
-      
+
       this.ws.onopen = () => {
         console.log("WebSocket connected");
         this.authenticate().then(resolve).catch(reject);
@@ -269,12 +381,28 @@ export class RunwareService {
       this.ws.onmessage = (event) => {
         console.log("WebSocket message received:", event.data);
         const response = JSON.parse(event.data);
-        
+
         if (response.error || response.errors) {
           console.error("WebSocket error response:", response);
           const errorMessage = response.errorMessage || response.errors?.[0]?.message || "An error occurred";
+
+          // Check if this is an authentication error
+          const isAuthError = response.errors?.some((e: any) =>
+            e.code === "invalidApiKey" || e.taskType === "authentication"
+          );
+
+          if (isAuthError) {
+            this.authFailed = true;
+            // Only show auth error once to prevent spam
+            if (!this.hasShownAuthError) {
+              this.hasShownAuthError = true;
+              toast.error("Invalid API key. Please check your API key and refresh the page.");
+            }
+            return;
+          }
+
           toast.error(errorMessage);
-          
+
           // Reject any pending promises for this error
           if (response.errors && Array.isArray(response.errors)) {
             response.errors.forEach((error: any) => {
@@ -287,7 +415,7 @@ export class RunwareService {
               }
             });
           }
-          
+
           // If no specific taskUUID, reject the most recent callback as fallback
           if (this.messageCallbacks.size > 0) {
             const lastKey = Array.from(this.messageCallbacks.keys()).pop();
@@ -308,6 +436,7 @@ export class RunwareService {
               console.log("Authentication successful, session UUID:", item.connectionSessionUUID);
               this.connectionSessionUUID = item.connectionSessionUUID;
               this.isAuthenticated = true;
+              this.authFailed = false;
             } else {
               const callback = this.messageCallbacks.get(item.taskUUID);
               if (callback) {
@@ -321,16 +450,22 @@ export class RunwareService {
 
       this.ws.onerror = (error) => {
         console.error("WebSocket error:", error);
-        toast.error("Connection error. Please try again.");
+        if (!this.authFailed) {
+          toast.error("Connection error. Please try again.");
+        }
         reject(error);
       };
 
       this.ws.onclose = () => {
-        console.log("WebSocket closed, attempting to reconnect...");
+        console.log("WebSocket closed");
         this.isAuthenticated = false;
-        setTimeout(() => {
-          this.connectionPromise = this.connect();
-        }, 1000);
+        // Only reconnect if auth didn't fail
+        if (!this.authFailed) {
+          console.log("Attempting to reconnect...");
+          setTimeout(() => {
+            this.connectionPromise = this.connect();
+          }, 1000);
+        }
       };
     });
   }
@@ -341,15 +476,15 @@ export class RunwareService {
         reject(new Error("WebSocket not ready for authentication"));
         return;
       }
-      
+
       const authMessage = [{
         taskType: "authentication",
         apiKey: this.apiKey,
         ...(this.connectionSessionUUID && { connectionSessionUUID: this.connectionSessionUUID }),
       }];
-      
+
       console.log("Sending authentication message");
-      
+
       const authCallback = (event: MessageEvent) => {
         const response = JSON.parse(event.data);
         if (response.data?.[0]?.taskType === "authentication") {
@@ -357,7 +492,7 @@ export class RunwareService {
           resolve();
         }
       };
-      
+
       this.ws.addEventListener("message", authCallback);
       this.ws.send(JSON.stringify(authMessage));
     });
@@ -373,9 +508,9 @@ export class RunwareService {
 
     // First upload the image
     const uploadedImageUrl = await this.uploadImageForURL(imageFile);
-    
+
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message = [{
         taskType: "imageControlNetPreProcess",
@@ -410,9 +545,9 @@ export class RunwareService {
       this.connectionPromise = this.connect();
       await this.connectionPromise;
     }
-    
+
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message = [{
         taskType: "imageControlNetPreProcess",
@@ -454,12 +589,12 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const dataUri = reader.result as string;
-        
+
         const message = [{
           taskType: "imageUpload",
           taskUUID,
@@ -497,12 +632,12 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const dataUri = reader.result as string;
-        
+
         const message = [{
           taskType: "imageUpload",
           taskUUID,
@@ -538,7 +673,7 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message: any = [{
         taskType: "imageInference",
@@ -557,36 +692,33 @@ export class RunwareService {
         ...(params.seedImage && { seedImage: params.seedImage }),
         ...(params.strength && { strength: params.strength }),
         ...(params.ipAdapters && { ipAdapters: params.ipAdapters }),
-        ...(params.referenceImages && { referenceImages: params.referenceImages })
+        ...(params.referenceImages && { referenceImages: params.referenceImages }),
+        // Extended parameters
+        ...(params.vae && { vae: params.vae }),
+        ...(params.clipSkip !== undefined && { clipSkip: params.clipSkip }),
+        ...(params.maskImage && { maskImage: params.maskImage }),
+        ...(params.maskMargin !== undefined && { maskMargin: params.maskMargin }),
+        ...(params.promptWeighting && { promptWeighting: params.promptWeighting }),
+        ...(params.seed !== undefined && params.seed !== null && { seed: params.seed }),
+        ...(params.advancedFeatures && { advancedFeatures: params.advancedFeatures }),
       }];
 
       // Only add these parameters if they exist in the original params
+      // Do NOT add defaults - let the API use its own defaults
       if (params.steps !== undefined) {
         message[0].steps = params.steps;
-      } else if (!params.referenceImages) {
-        // Default steps for non-Flux Kontext models
-        message[0].steps = 4;
       }
 
       if (params.CFGScale !== undefined) {
         message[0].CFGScale = params.CFGScale;
-      } else if (!params.referenceImages) {
-        // Default CFGScale for non-Flux Kontext models
-        message[0].CFGScale = 1;
       }
 
       if (params.scheduler !== undefined) {
         message[0].scheduler = params.scheduler;
-      } else if (!params.referenceImages) {
-        // Default scheduler for non-Flux Kontext models
-        message[0].scheduler = "FlowMatchEulerDiscreteScheduler";
       }
 
       if (params.lora !== undefined) {
         message[0].lora = params.lora;
-      } else if (!params.referenceImages) {
-        // Default empty lora array for non-Flux Kontext models
-        message[0].lora = [];
       }
 
       console.log("Sending image generation message:", message);
@@ -613,7 +745,7 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message = [{
         taskType: "imageInference",
@@ -657,7 +789,7 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message: any = [{
         taskType: "imageInference",
@@ -721,7 +853,7 @@ export class RunwareService {
     const dimensions = params.sizeRatio ? sizeMap[params.sizeRatio] : { width: 1024, height: 1024 };
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message: any = [{
         taskType: "imageInference",
@@ -773,11 +905,12 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message = [{
         taskType: "imageBackgroundRemoval",
         taskUUID,
+        model: "runware:110@1",
         inputImage: params.inputImage,
         outputFormat: params.outputFormat || "PNG",
         outputType: ["URL"]
@@ -811,7 +944,7 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message = [{
         taskType: "imageUpscale",
@@ -850,7 +983,7 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message = [{
         taskType: "imageInference",
@@ -892,7 +1025,7 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const message = [{
         taskType: "imageInference",
@@ -926,9 +1059,9 @@ export class RunwareService {
   }
 
   // Specialized Flux Kontext methods for different node types
-  
+
   // Reference node: apply changes based on reference type
-  async generateReference(inputImage: string, prompt: string, referenceType: string, useFluxKontextPro: boolean = false, sizeRatio?: string, lora?: Array<{model: string; weight: number}>): Promise<GeneratedImage> {
+  async generateReference(inputImage: string, prompt: string, referenceType: string, useFluxKontextPro: boolean = false, sizeRatio?: string, lora?: Array<{ model: string; weight: number }>): Promise<GeneratedImage> {
     const enhancedPrompt = `Apply ${referenceType} reference: ${prompt}`;
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
@@ -947,7 +1080,7 @@ export class RunwareService {
   }
 
   // Re-scene node: blend object with scene (takes two images)
-  async generateReScene(objectImage: string, sceneImage: string, useFluxKontextPro: boolean = false, sizeRatio?: string, lora?: Array<{model: string; weight: number}>): Promise<GeneratedImage> {
+  async generateReScene(objectImage: string, sceneImage: string, useFluxKontextPro: boolean = false, sizeRatio?: string, lora?: Array<{ model: string; weight: number }>): Promise<GeneratedImage> {
     const prompt = "Blend this object into this scene while maintaining all details and realistic lighting";
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
@@ -966,7 +1099,7 @@ export class RunwareService {
   }
 
   // Re-angle node: change camera angle
-  async generateReAngle(inputImage: string, degrees: number, direction: string, useFluxKontextPro: boolean = false, sizeRatio?: string, lora?: Array<{model: string; weight: number}>): Promise<GeneratedImage> {
+  async generateReAngle(inputImage: string, degrees: number, direction: string, useFluxKontextPro: boolean = false, sizeRatio?: string, lora?: Array<{ model: string; weight: number }>): Promise<GeneratedImage> {
     const prompt = `Change camera angle of this image by ${degrees} degrees to ${direction} direction`;
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
@@ -985,7 +1118,7 @@ export class RunwareService {
   }
 
   // Re-mix node: blend multiple images using ipadapters
-  async generateReMix(inputImages: string[], useFluxKontextPro: boolean = false, sizeRatio?: string, lora?: Array<{model: string; weight: number}>): Promise<GeneratedImage> {
+  async generateReMix(inputImages: string[], useFluxKontextPro: boolean = false, sizeRatio?: string, lora?: Array<{ model: string; weight: number }>): Promise<GeneratedImage> {
     const prompt = "Creatively blend and remix these images into a cohesive composition";
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
@@ -1004,7 +1137,7 @@ export class RunwareService {
   }
 
   // Re-imagine: transform uploaded image based on prompt
-  async generateReImagine(inputImage: string, prompt: string, useFluxKontextPro: boolean = false, sizeRatio?: string, creativity?: number, lora?: Array<{model: string; weight: number}>): Promise<GeneratedImage> {
+  async generateReImagine(inputImage: string, prompt: string, useFluxKontextPro: boolean = false, sizeRatio?: string, creativity?: number, lora?: Array<{ model: string; weight: number }>): Promise<GeneratedImage> {
     if (useFluxKontextPro) {
       return this.generateFluxKontextPro({
         positivePrompt: prompt,
@@ -1031,10 +1164,10 @@ export class RunwareService {
     }
 
     const taskUUID = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const { taskUUID: _, ...paramsWithoutTaskUUID } = params as any;
-      
+
       const message = [{
         taskType: "modelUpload",
         taskUUID,
@@ -1068,7 +1201,7 @@ export class RunwareService {
       this.connectionPromise = this.connect();
       await this.connectionPromise;
     }
-    
+
     return new Promise((resolve, reject) => {
       const message = [params];
 
@@ -1100,7 +1233,7 @@ export class RunwareService {
       this.connectionPromise = this.connect();
       await this.connectionPromise;
     }
-    
+
     return new Promise((resolve, reject) => {
       const message = [params];
 
@@ -1124,11 +1257,208 @@ export class RunwareService {
     });
   }
 
+  // Video Generation
+  async generateVideo(params: VideoInferenceParams): Promise<VideoInferenceResult> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+
+    return new Promise((resolve, reject) => {
+      const message: any = [{
+        taskType: "videoInference",
+        taskUUID,
+        model: params.model,
+        outputType: params.outputType || ["URL"],
+        outputFormat: params.outputFormat || "MP4",
+        includeCost: true,
+        ...(params.positivePrompt && { positivePrompt: params.positivePrompt }),
+        ...(params.negativePrompt && { negativePrompt: params.negativePrompt }),
+        ...(params.width && { width: params.width }),
+        ...(params.height && { height: params.height }),
+        ...(params.steps && { steps: params.steps }),
+        ...(params.CFGScale && { CFGScale: params.CFGScale }),
+        ...(params.scheduler && { scheduler: params.scheduler }),
+        ...(params.seed && { seed: params.seed }),
+        ...(params.duration && { duration: params.duration }),
+        ...(params.fps && { fps: params.fps }),
+        ...(params.numberResults && { numberResults: params.numberResults }),
+        ...(params.outputQuality && { outputQuality: params.outputQuality }),
+        ...(params.referenceImages && { referenceImages: params.referenceImages }),
+        ...(params.inputAudios && { inputAudios: params.inputAudios }),
+        ...(params.referenceVideos && { referenceVideos: params.referenceVideos }),
+        ...(params.frameImages && { frameImages: params.frameImages }),
+        ...(params.lora && { lora: params.lora }),
+      }];
+
+      // Handle Image-to-Video (Runware often uses referenceImages or frameImages depending on model)
+      if (params.inputImage && !params.referenceImages && !params.frameImages) {
+        message[0].referenceImages = [params.inputImage];
+      }
+
+      console.log("Sending video generation message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve(data);
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  // Image masking - generates masks for faces, hands, and people
+  async generateImageMask(params: ImageMaskingParams): Promise<ImageMaskingResult> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageMasking",
+        taskUUID,
+        inputImage: params.inputImage,
+        model: params.model,
+        ...(params.confidence !== undefined && { confidence: params.confidence }),
+        ...(params.maxDetections !== undefined && { maxDetections: params.maxDetections }),
+        ...(params.maskPadding !== undefined && { maskPadding: params.maskPadding }),
+        ...(params.maskBlur !== undefined && { maskBlur: params.maskBlur }),
+        outputFormat: params.outputFormat || "PNG",
+        outputType: params.outputType || ["URL"],
+        includeCost: true
+      }];
+
+      console.log("Sending image masking message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve({
+            taskType: data.taskType,
+            taskUUID: data.taskUUID,
+            inputImageUUID: data.inputImageUUID,
+            maskImageURL: data.maskImageURL,
+            maskImageDataURI: data.maskImageDataURI,
+            maskImageBase64Data: data.maskImageBase64Data,
+            maskImageUUID: data.maskImageUUID,
+            detections: data.detections || [],
+            cost: data.cost
+          });
+        }
+      });
+
+      this.ws!.send(JSON.stringify(message));
+    });
+  }
+
   disconnect() {
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
+  }
+
+  // Image Vectorization - converts raster images to SVG
+  async vectorizeImage(params: VectorizeParams): Promise<VectorizeResult> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "vectorize",
+        taskUUID,
+        model: params.model,
+        outputType: params.outputType || "URL",
+        outputFormat: params.outputFormat || "SVG",
+        includeCost: true,
+        inputs: {
+          image: params.inputImage
+        }
+      }];
+
+      console.log("Sending vectorize message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve(data);
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  // Live Light Edit - uses prunaai:2@1 model with correct API format
+  async prepareLiveLightEdit(params: {
+    referenceImage: string;
+    positivePrompt: string;
+    turbo?: boolean;
+  }): Promise<GeneratedImage> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "imageInference",
+        taskUUID,
+        model: "prunaai:2@1",
+        numberResults: 1,
+        outputFormat: "JPEG",
+        includeCost: true,
+        outputType: ["URL"],
+        positivePrompt: params.positivePrompt,
+        inputs: {
+          referenceImages: [params.referenceImage]
+        },
+        safety: {
+          checkContent: false
+        },
+        providerSettings: {
+          prunaai: {
+            turbo: params.turbo !== false // default to true
+          }
+        }
+      }];
+
+      console.log("Sending Live Light edit message:", message);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage));
+        } else {
+          resolve(data);
+        }
+      });
+
+      this.ws.send(JSON.stringify(message));
+    });
   }
 }
 
@@ -1142,7 +1472,7 @@ export const CONTROL_NET_PREPROCESSORS: ControlNetPreprocessor[] = [
   },
   {
     id: "depth",
-    name: "Depth Map", 
+    name: "Depth Map",
     description: "Creates a depth map of the image",
     taskType: "imageControlNetPreProcess",
     preprocessor: "depth"
@@ -1151,7 +1481,7 @@ export const CONTROL_NET_PREPROCESSORS: ControlNetPreprocessor[] = [
     id: "pose",
     name: "Human Pose",
     description: "Detects human poses and body structure",
-    taskType: "imageControlNetPreProcess", 
+    taskType: "imageControlNetPreProcess",
     preprocessor: "openpose"
   },
   {

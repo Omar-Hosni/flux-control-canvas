@@ -38,7 +38,7 @@ export const EngineNode = memo(({ id, data }: EngineNodeProps) => {
     // Find ALL output nodes connected to this engine
     const { edges } = useWorkflowStore.getState();
     const connectedOutputs = edges.filter(edge => edge.source === id && edge.target.includes('output'));
-    
+
     // Execute workflow for each connected output node
     for (const outputEdge of connectedOutputs) {
       await executeWorkflow(outputEdge.target);
@@ -46,17 +46,17 @@ export const EngineNode = memo(({ id, data }: EngineNodeProps) => {
   };
 
   return (
-    <Card className="min-w-64 p-4 bg-ai-surface border-border shadow-card">
+    <Card className="min-w-64 p-4 bg-[#1a1a1a] border-2 border-zinc-800 hover:border-zinc-700 shadow-xl hover:shadow-2xl transition-all duration-200">
       <div className="flex items-center gap-2 mb-3">
-        <div className="p-1.5 rounded bg-gradient-to-br from-purple-600 to-blue-600">
+        <div className="p-1.5 rounded bg-gradient-to-br from-black to-zinc-900 border border-zinc-700">
           <Cpu className="w-3 h-3 text-white" />
         </div>
-        <h3 className="text-sm font-medium text-foreground">{data.label}</h3>
+        <h3 className="text-sm font-medium text-white">{data.label}</h3>
       </div>
 
       <div className="space-y-3">
         <div>
-          <Label className="text-xs text-muted-foreground">Model</Label>
+          <Label className="text-xs text-zinc-400">Model</Label>
           <Select
             value={data.model}
             onValueChange={(value) => updateNodeData(id, { model: value, customModel: '' })}
@@ -77,7 +77,7 @@ export const EngineNode = memo(({ id, data }: EngineNodeProps) => {
 
         {data.model === 'custom' && (
           <div>
-            <Label className="text-xs text-muted-foreground">AIR Code</Label>
+            <Label className="text-xs text-zinc-400">AIR Code</Label>
             <Textarea
               placeholder="Paste AIR code here (e.g., runware:123@1)"
               value={data.customModel || ''}
@@ -90,7 +90,7 @@ export const EngineNode = memo(({ id, data }: EngineNodeProps) => {
         <Badge variant="secondary" className="text-xs">
           Generation Engine
         </Badge>
-        
+
         <Button
           variant="ai"
           size="sm"
@@ -115,12 +115,12 @@ export const EngineNode = memo(({ id, data }: EngineNodeProps) => {
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-3 !h-3 !bg-gray-400 !border-2 !border-white"
+        className="!w-3 !h-3 !bg-zinc-400 !border-2 !border-zinc-900 hover:!scale-125 transition-transform"
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-3 !h-3 !bg-green-500 !border-2 !border-white"
+        className="!w-3 !h-3 !bg-white !border-2 !border-zinc-900 hover:!scale-125 transition-transform"
       />
     </Card>
   );

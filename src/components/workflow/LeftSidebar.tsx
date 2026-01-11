@@ -3,14 +3,15 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Type, 
-  Image, 
-  Zap, 
-  Layers, 
-  Users, 
-  Eye, 
-  RotateCcw, 
+import { Link } from 'react-router-dom';
+import {
+  Type,
+  Image,
+  Zap,
+  Layers,
+  Users,
+  Eye,
+  RotateCcw,
   Palette,
   Camera,
   Shuffle,
@@ -21,7 +22,8 @@ import {
   Cpu,
   Settings,
   MonitorSpeaker,
-  Grid3x3
+  Grid3x3,
+  Home
 } from 'lucide-react';
 
 interface LeftSidebarProps {
@@ -77,24 +79,36 @@ export const LeftSidebar = ({ onAddNode }: LeftSidebarProps) => {
   ];
 
   return (
-    <div className="w-64 h-full bg-ai-surface border-r border-border">
-      <div className="p-4 border-b border-border">
+    <div className="w-72 h-full bg-[#0f0f0f] border-r-2 border-zinc-800">
+      <div className="p-4 border-b-2 border-zinc-800 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-gradient-primary">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-black to-zinc-900 border-2 border-zinc-700">
             <Zap className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Nodes</h2>
-            <p className="text-sm text-muted-foreground">Drag to canvas</p>
+            <h2 className="text-lg font-semibold text-white">Nodes</h2>
+            <p className="text-sm text-zinc-500">Drag to canvas</p>
           </div>
         </div>
+
+        {/* Home Button */}
+        <Link to="/">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-200 transition-all"
+          >
+            <Home className="w-4 h-4 mr-2" />
+            Back to Home
+          </Button>
+        </Link>
       </div>
 
       <ScrollArea className="h-[calc(100vh-120px)]">
         <div className="p-4 space-y-6">
           {nodeCategories.map((category, categoryIndex) => (
             <div key={category.title}>
-              <h3 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wide">
+              <h3 className="text-sm font-medium text-zinc-400 mb-3 uppercase tracking-wider">
                 {category.title}
               </h3>
               <div className="grid grid-cols-2 gap-2">
@@ -105,19 +119,19 @@ export const LeftSidebar = ({ onAddNode }: LeftSidebarProps) => {
                       key={node.type + node.label}
                       variant="surface"
                       size="sm"
-                      className="flex flex-col h-20 p-3 group hover:scale-105 hover:shadow-glow transition-all duration-300 bg-ai-surface border-border hover:border-primary/50 hover:bg-ai-surface-elevated"
+                      className="flex flex-col h-20 p-3 group hover:scale-105 transition-all duration-200 bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 shadow-lg hover:shadow-xl"
                       onClick={() => onAddNode(node.type, node.data)}
                     >
-                      <div className="p-1.5 rounded-md bg-gradient-primary mb-2 group-hover:shadow-ai transition-shadow">
+                      <div className="p-1.5 rounded-md bg-gradient-to-br from-black to-zinc-800 border border-zinc-700 mb-2 group-hover:border-zinc-600 transition-colors">
                         <IconComponent className="w-4 h-4 text-white" />
                       </div>
-                      <span className="text-xs font-medium text-center leading-tight">{node.label}</span>
+                      <span className="text-xs font-medium text-center leading-tight text-zinc-200">{node.label}</span>
                     </Button>
                   );
                 })}
               </div>
               {categoryIndex < nodeCategories.length - 1 && (
-                <Separator className="mt-6 bg-border" />
+                <Separator className="mt-6 bg-zinc-800" />
               )}
             </div>
           ))}

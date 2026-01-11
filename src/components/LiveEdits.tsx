@@ -16,18 +16,79 @@ export const LiveEdits: React.FC<LiveEditsProps> = ({ runwareService }) => {
   const [segmentationImageUrl, setSegmentationImageUrl] = useState<string>("");
   const [selectedAreaImage, setSelectedAreaImage] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [hoveredSegment, setHoveredSegment] = useState<{x: number, y: number} | null>(null);
-  
+  const [hoveredSegment, setHoveredSegment] = useState<{ x: number, y: number } | null>(null);
+
+  /* New state for multi-selection */
+  const [selectedColors, setSelectedColors] = useState<{ r: number, g: number, b: number }[]>([]);
+  const [isMultiSelectEnabled, setIsMultiSelectEnabled] = useState(false);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const segmentationImageRef = useRef<HTMLImageElement>(null);
+  const segmentationDataRef = useRef<ImageData | null>(null);
+
+  // ... (keeping effects as they match the original file structure, just showing context for state addition)
+
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!segmentationImageUrl || !hoveredSegment) return;
+
+    const segmentColor = getSegmentColor(hoveredSegment.x, hoveredSegment.y);
+    if (!segmentColor) return;
+
+    const isMultiSelect = isMultiSelectEnabled || e.ctrlKey || e.metaKey;
+
+    setSelectedColors(prev => {
+      const tolerance = 10;
+      const existingIndex = prev.findIndex(c =>
+        Math.abs(c.r - segmentColor.r) < tolerance &&
+        Math.abs(c.g - segmentColor.g) < tolerance &&
+        Math.abs(c.b - segmentColor.b) < tolerance
+      );
+
+      if (isMultiSelect) {
+        // Toggle behavior
+        if (existingIndex >= 0) {
+          // Toggle off
+          const updated = [...prev];
+          updated.splice(existingIndex, 1);
+          return updated;
+        } else {
+          // Toggle on
+          return [...prev, segmentColor];
+        }
+      } else {
+        // Single select behavior (replace unless clicking the same one, in which case maybe deselect?)
+        // Standard UX: Single click replaces selection. Clicking same one again replaces with itself (no change) or deselects?
+        // Let's go with "replace selection".
+        if (existingIndex >= 0 && prev.length === 1) {
+          // Clicking the only selected segment -> deselect it? Or keep it?
+          // "Select" implies keeping it. But acts as toggle often.
+          // Let's make single click replace. If I click A, only A is selected. If I click A again, A stays selected.
+          // If I want to clear, I use the clear button or multi-select toggle.
+          // Actually, if I click the SAME segment in single mode, and it's invalid to have 0 selection? No, 0 is valid.
+          // Let's make it toggle if it's the *only* one selected? No, consistent replace is better?
+          // User asked: "allow multi select... checkbox... also allow it when I hold ctr button".
+          // Implies default is single select.
+          return [segmentColor];
+        } else {
+          return [segmentColor];
+        }
+      }
+    });
+
+    toast.success(isMultiSelect ? 'Selection updated' : 'Segment selected');
+  };
 
   useEffect(() => {
     if (uploadedImage) {
       const url = URL.createObjectURL(uploadedImage);
       setUploadedImageUrl(url);
       handlePreprocessSegmentation(uploadedImage);
-      
+
+      // Clear selection on new image
+      setSelectedColors([]);
+      setSelectedAreaImage("");
+
       return () => URL.revokeObjectURL(url);
     }
   }, [uploadedImage]);
@@ -60,16 +121,31 @@ export const LiveEdits: React.FC<LiveEditsProps> = ({ runwareService }) => {
         canvas.width = img.width;
         canvas.height = img.height;
         segmentationImageRef.current = img;
+
+        // Store segmentation data for efficient access
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (tempCtx) {
+          tempCtx.drawImage(img, 0, 0);
+          segmentationDataRef.current = tempCtx.getImageData(0, 0, img.width, img.height);
+        }
       };
       img.src = segmentationImageUrl;
     }
   }, [segmentationImageUrl]);
 
+  /* Effect to update the output image whenever selection changes */
+  useEffect(() => {
+    updateSelectedAreaImage();
+  }, [selectedColors]);
+
   const handlePreprocessSegmentation = async (imageFile: File) => {
     setIsProcessing(true);
     try {
       const uploadedId = await runwareService.uploadImage(imageFile);
-      
+
       const result = await runwareService.preprocessControlNet({
         inputImage: uploadedId,
         preProcessorType: 'seg',
@@ -91,25 +167,20 @@ export const LiveEdits: React.FC<LiveEditsProps> = ({ runwareService }) => {
   };
 
   const getSegmentColor = (x: number, y: number): { r: number, g: number, b: number } | null => {
-    if (!overlayCanvasRef.current || !segmentationImageRef.current) return null;
-    
-    const canvas = overlayCanvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+    if (!segmentationDataRef.current) return null;
 
-    // Draw segmentation image to get pixel data
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(segmentationImageRef.current, 0, 0);
-    
-    const imageData = ctx.getImageData(x, y, 1, 1);
-    const data = imageData.data;
-    
-    return { r: data[0], g: data[1], b: data[2] };
+    const data = segmentationDataRef.current.data;
+    const width = segmentationDataRef.current.width;
+    const index = (y * width + x) * 4;
+
+    if (index < 0 || index >= data.length) return null;
+
+    return { r: data[index], g: data[index + 1], b: data[index + 2] };
   };
 
   const highlightSegment = (x: number, y: number) => {
-    if (!overlayCanvasRef.current || !segmentationImageRef.current) return;
-    
+    if (!overlayCanvasRef.current || !segmentationDataRef.current) return;
+
     const canvas = overlayCanvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -117,49 +188,65 @@ export const LiveEdits: React.FC<LiveEditsProps> = ({ runwareService }) => {
     const segmentColor = getSegmentColor(x, y);
     if (!segmentColor) return;
 
-    // Clear and redraw segmentation
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(segmentationImageRef.current, 0, 0);
-    
-    // Get all pixels and highlight matching segment
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    
-    const highlightData = ctx.createImageData(canvas.width, canvas.height);
+    const width = canvas.width;
+    const height = canvas.height;
+    const segData = segmentationDataRef.current.data;
+
+    const highlightData = ctx.createImageData(width, height);
     const highlight = highlightData.data;
-    
+
     const tolerance = 10;
-    
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      
-      if (
-        Math.abs(r - segmentColor.r) < tolerance &&
-        Math.abs(g - segmentColor.g) < tolerance &&
-        Math.abs(b - segmentColor.b) < tolerance
-      ) {
-        highlight[i] = 0;     // Blue
-        highlight[i + 1] = 100;
-        highlight[i + 2] = 255;
-        highlight[i + 3] = 128; // Semi-transparent
+
+    const isMatch = (idx: number, color: { r: number, g: number, b: number }) => {
+      if (idx < 0 || idx >= segData.length) return false;
+      return Math.abs(segData[idx] - color.r) < tolerance &&
+        Math.abs(segData[idx + 1] - color.g) < tolerance &&
+        Math.abs(segData[idx + 2] - color.b) < tolerance;
+    };
+
+    for (let i = 0; i < segData.length; i += 4) {
+      if (isMatch(i, segmentColor)) {
+        const pxIndex = i / 4;
+        const cx = pxIndex % width;
+        const cy = Math.floor(pxIndex / width);
+
+        let isBorder = false;
+
+        // Check neighbors to detect border
+        if (cx > 0 && !isMatch(i - 4, segmentColor)) isBorder = true;
+        else if (cx < width - 1 && !isMatch(i + 4, segmentColor)) isBorder = true;
+        else if (cy > 0 && !isMatch(i - width * 4, segmentColor)) isBorder = true;
+        else if (cy < height - 1 && !isMatch(i + width * 4, segmentColor)) isBorder = true;
+
+        if (isBorder) {
+          // Darker blue border
+          highlight[i] = 0;
+          highlight[i + 1] = 80;
+          highlight[i + 2] = 200;
+          highlight[i + 3] = 255; // Opaque
+        } else {
+          // Blue highlight with 10% opacity
+          highlight[i] = 0;
+          highlight[i + 1] = 120;
+          highlight[i + 2] = 255;
+          highlight[i + 3] = 26; // ~10% of 255
+        }
       }
     }
-    
+
     ctx.putImageData(highlightData, 0, 0);
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!segmentationImageUrl) return;
-    
+
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const x = Math.floor((e.clientX - rect.left) * scaleX);
     const y = Math.floor((e.clientY - rect.top) * scaleY);
-    
+
     setHoveredSegment({ x, y });
     highlightSegment(x, y);
   };
@@ -174,67 +261,79 @@ export const LiveEdits: React.FC<LiveEditsProps> = ({ runwareService }) => {
     }
   };
 
-  const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!segmentationImageUrl || !hoveredSegment) return;
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const segmentColor = getSegmentColor(hoveredSegment.x, hoveredSegment.y);
-    if (!segmentColor) return;
 
-    // Create mask for selected segment
+  const updateSelectedAreaImage = () => {
+    if (selectedColors.length === 0) {
+      setSelectedAreaImage("");
+      return;
+    }
+
+    if (!segmentationDataRef.current || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const maskCanvas = document.createElement('canvas');
-    maskCanvas.width = canvas.width;
-    maskCanvas.height = canvas.height;
-    const maskCtx = maskCanvas.getContext('2d');
-    if (!maskCtx) return;
+    const width = canvas.width;
+    const height = canvas.height;
 
-    // Draw segmentation to get pixel data
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    if (!tempCtx || !segmentationImageRef.current) return;
-    
-    tempCtx.drawImage(segmentationImageRef.current, 0, 0);
-    const segData = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
-    
-    // Create mask
-    const maskData = maskCtx.createImageData(canvas.width, canvas.height);
+    const originalImageData = ctx.getImageData(0, 0, width, height);
+    const originalData = originalImageData.data;
+
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = width;
+    outputCanvas.height = height;
+    const outputCtx = outputCanvas.getContext('2d');
+    if (!outputCtx) return;
+
+    const segData = segmentationDataRef.current.data;
+    const segWidth = segmentationDataRef.current.width;
+    const segHeight = segmentationDataRef.current.height;
+
+    const outputImageData = outputCtx.createImageData(width, height);
+    const outputData = outputImageData.data;
     const tolerance = 10;
-    
-    for (let i = 0; i < segData.data.length; i += 4) {
-      const r = segData.data[i];
-      const g = segData.data[i + 1];
-      const b = segData.data[i + 2];
-      
-      if (
-        Math.abs(r - segmentColor.r) < tolerance &&
-        Math.abs(g - segmentColor.g) < tolerance &&
-        Math.abs(b - segmentColor.b) < tolerance
-      ) {
-        maskData.data[i] = 255;
-        maskData.data[i + 1] = 255;
-        maskData.data[i + 2] = 255;
-        maskData.data[i + 3] = 255;
+
+    // Iterate over original image pixels
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        // Scale coordinates
+        const sx = Math.floor(x * (segWidth / width));
+        const sy = Math.floor(y * (segHeight / height));
+
+        const segIndex = (sy * segWidth + sx) * 4;
+
+        if (segIndex >= 0 && segIndex < segData.length) {
+          const r = segData[segIndex];
+          const g = segData[segIndex + 1];
+          const b = segData[segIndex + 2];
+
+          // Check if matches ANY selected color
+          const isSelected = selectedColors.some(sc =>
+            Math.abs(r - sc.r) < tolerance &&
+            Math.abs(g - sc.g) < tolerance &&
+            Math.abs(b - sc.b) < tolerance
+          );
+
+          if (isSelected) {
+            const i = (y * width + x) * 4;
+            outputData[i] = originalData[i];
+            outputData[i + 1] = originalData[i + 1];
+            outputData[i + 2] = originalData[i + 2];
+            outputData[i + 3] = 255;
+          }
+        }
       }
     }
-    
-    maskCtx.putImageData(maskData, 0, 0);
-    
-    // Convert mask to blob and display
-    maskCanvas.toBlob((blob) => {
+
+    outputCtx.putImageData(outputImageData, 0, 0);
+
+    outputCanvas.toBlob((blob) => {
       if (blob) {
         const url = URL.createObjectURL(blob);
         setSelectedAreaImage(url);
-        toast.success('Segment selected!');
       }
-    });
+    }, 'image/png');
   };
 
   return (
@@ -244,24 +343,35 @@ export const LiveEdits: React.FC<LiveEditsProps> = ({ runwareService }) => {
           <Upload className="w-5 h-5" />
           Upload Image
         </h3>
-        
+
         <ImageUpload
           onImageSelect={setUploadedImage}
           selectedImage={uploadedImage}
         />
-        
+
         {isProcessing && (
           <div className="mt-4 text-center text-sm text-muted-foreground">
             Processing segmentation...
           </div>
         )}
-        
+
         {uploadedImageUrl && (
           <div className="mt-6 relative">
             <h4 className="text-sm font-semibold mb-2">Interactive Canvas</h4>
-            <p className="text-xs text-muted-foreground mb-3">
-              Hover to highlight segments, click to select
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-muted-foreground">
+                Hover to highlight, click to select
+              </p>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isMultiSelectEnabled}
+                  onChange={(e) => setIsMultiSelectEnabled(e.target.checked)}
+                  className="rounded border-border bg-background"
+                />
+                Multi-select
+              </label>
+            </div>
             <div className="relative inline-block">
               <canvas
                 ref={canvasRef}
@@ -273,7 +383,7 @@ export const LiveEdits: React.FC<LiveEditsProps> = ({ runwareService }) => {
                 onMouseLeave={handleCanvasMouseLeave}
                 onClick={handleCanvasClick}
                 className="absolute top-0 left-0 max-w-full h-auto cursor-pointer"
-                style={{ opacity: 0 }}
+                style={{ opacity: 1 }}
               />
             </div>
           </div>
@@ -281,14 +391,29 @@ export const LiveEdits: React.FC<LiveEditsProps> = ({ runwareService }) => {
       </Card>
 
       <Card className="p-6 bg-ai-surface border-border shadow-card">
-        <h3 className="text-lg font-semibold mb-4">Selected Segment</h3>
-        
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Selected Segment</h3>
+          {selectedColors.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedColors([]);
+                toast.info("Selection cleared");
+              }}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+
         {selectedAreaImage ? (
           <div className="space-y-4">
             <img
               src={selectedAreaImage}
               alt="Selected segment"
-              className="w-full h-auto border border-border rounded"
+              className="w-full h-auto border border-border rounded bg-white/5"
             />
             <Button
               variant="outline"
@@ -308,17 +433,17 @@ export const LiveEdits: React.FC<LiveEditsProps> = ({ runwareService }) => {
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-ai-surface-elevated flex items-center justify-center">
               <Upload className="w-8 h-8 opacity-50" />
             </div>
-            <p>Upload an image and click on a segment to see it here</p>
+            <p>Upload an image and click on segments to combine them here</p>
           </div>
         )}
-        
+
         <div className="mt-6 p-4 bg-ai-surface-elevated rounded-lg border border-border">
           <h4 className="text-sm font-semibold mb-2">How to use:</h4>
           <ol className="text-sm text-muted-foreground space-y-1 list-decimal pl-5">
             <li>Upload an image</li>
             <li>Wait for automatic segmentation</li>
-            <li>Hover over the image to highlight segments</li>
-            <li>Click to select and extract a segment</li>
+            <li>Click multiple segments to combine them</li>
+            <li>Click a selected segment again to remove it</li>
           </ol>
         </div>
       </Card>

@@ -47,22 +47,22 @@ const getNodeIcon = (nodeType: string) => {
 
 const getWorkflows = (nodes: Node[], edges: any[]) => {
   const engineNodes = nodes.filter(node => node.type === 'engine');
-  
+
   return engineNodes.map((engineNode, index) => {
     // Find all connected nodes to this engine
-    const connectedEdges = edges.filter(edge => 
+    const connectedEdges = edges.filter(edge =>
       edge.source === engineNode.id || edge.target === engineNode.id
     );
-    
+
     const connectedNodeIds = new Set();
     connectedEdges.forEach(edge => {
       connectedNodeIds.add(edge.source);
       connectedNodeIds.add(edge.target);
     });
-    
+
     const connectedNodes = nodes.filter(node => connectedNodeIds.has(node.id));
     const data = engineNode.data as NodeData;
-    
+
     return {
       id: engineNode.id,
       name: data.label || `Workflow ${index + 1}`,
@@ -75,7 +75,7 @@ const getWorkflows = (nodes: Node[], edges: any[]) => {
 export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
   const { nodes, edges, updateNodeData, getProcessedImage } = useWorkflowStore();
   const workflows = getWorkflows(nodes, edges);
-  
+
   const NodeIcon = selectedNode ? getNodeIcon(selectedNode.type!) : Zap;
 
   const renderNodeProperties = () => {
@@ -211,7 +211,7 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
       case 'controlNet':
         const isOpenPose = nodeData.preprocessor === 'openpose';
         const guidedImageURL = nodeData.guidedImageURL;
-        
+
         return (
           <div className="space-y-4">
             <div>
@@ -243,7 +243,7 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
                 className="h-8 text-xs"
               />
             </div>
-            
+
             {/* Show preprocessed image or Rive component */}
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">Preview</Label>
@@ -289,6 +289,42 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
           </div>
         );
 
+      case 'output':
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Aspect Ratio</Label>
+              <Select
+                value={nodeData.aspectRatio || '1:1'}
+                onValueChange={(value) => handleUpdateData('aspectRatio', value)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                  <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
+                  <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
+                  <SelectItem value="4:3">4:3 (Standard)</SelectItem>
+                  <SelectItem value="3:4">3:4 (Portrait)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {(() => {
+                const dimensions: Record<string, string> = {
+                  '1:1': '320 × 320px',
+                  '16:9': '480 × 270px',
+                  '9:16': '270 × 480px',
+                  '4:3': '400 × 300px',
+                  '3:4': '300 × 400px',
+                };
+                return dimensions[nodeData.aspectRatio || '1:1'];
+              })()}
+            </div>
+          </div>
+        );
+
       default:
         // Check if this is a light node
         if (selectedNode.type?.includes('light') || (typeof selectedNode.data?.label === 'string' && selectedNode.data.label.toLowerCase().includes('light'))) {
@@ -309,7 +345,7 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
             </div>
           );
         }
-        
+
         return (
           <div>
             <Label className="text-xs text-muted-foreground">Label</Label>
@@ -329,7 +365,7 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
       <div className="border-b border-border">
         <div className="p-4">
           <h2 className="text-lg font-semibold text-foreground mb-4">Properties</h2>
-          
+
           {selectedNode ? (
             <Card className="p-4 bg-ai-surface-elevated border-border">
               <div className="flex items-center gap-3 mb-4">
@@ -343,7 +379,7 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
                   </Badge>
                 </div>
               </div>
-              
+
               {renderNodeProperties()}
             </Card>
           ) : (
@@ -360,7 +396,7 @@ export const RightSidebar = ({ selectedNode }: RightSidebarProps) => {
       <div className="flex-1 overflow-hidden">
         <div className="p-4">
           <h2 className="text-lg font-semibold text-foreground mb-4">Workflows</h2>
-          
+
           <ScrollArea className="h-[calc(100vh-400px)]">
             <div className="space-y-3">
               {workflows.length > 0 ? (

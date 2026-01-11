@@ -8,17 +8,16 @@ import { RunwareService } from '@/services/RunwareService';
 import { useWorkflowStore } from '@/stores/workflowStore';
 
 const SimpleTextToImagePage = () => {
-  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>("v8r2CamVZNCtye7uypGvHfQOh48ZQQaZ");
   const { setRunwareService, runwareService } = useWorkflowStore();
 
   useEffect(() => {
-    // Try to get API key from localStorage first
+    // Try to get API key from localStorage first, otherwise use default
     const savedApiKey = localStorage.getItem('runware_api_key');
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-      const service = new RunwareService(savedApiKey);
-      setRunwareService(service);
-    }
+    const keyToUse = savedApiKey || "v8r2CamVZNCtye7uypGvHfQOh48ZQQaZ";
+    setApiKey(keyToUse);
+    const service = new RunwareService(keyToUse);
+    setRunwareService(service);
   }, [setRunwareService]);
 
   const handleApiKeySet = (key: string) => {

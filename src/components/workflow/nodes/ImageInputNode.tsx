@@ -27,7 +27,7 @@ export const ImageInputNode = memo(({ id, data }: ImageInputNodeProps) => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     const imageFile = files.find(file => file.type.startsWith('image/'));
     if (imageFile) {
@@ -53,15 +53,15 @@ export const ImageInputNode = memo(({ id, data }: ImageInputNodeProps) => {
   };
 
   return (
-    <Card className="min-w-64 p-4 bg-ai-surface border-border shadow-card">
+    <Card className="min-w-64 p-4 bg-[#1a1a1a] border-2 border-zinc-800 hover:border-zinc-700 shadow-xl hover:shadow-2xl transition-all duration-200">
       <div className="flex items-center gap-2 mb-3">
-        <div className="p-1.5 rounded bg-gradient-to-br from-blue-500 to-cyan-500">
+        <div className="p-1.5 rounded bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700">
           <Image className="w-3 h-3 text-white" />
         </div>
         <div className="flex flex-col flex-1">
-          <h3 className="text-sm font-medium text-foreground">{data.label}</h3>
+          <h3 className="text-sm font-medium text-white">{data.label}</h3>
           {data.imageType && (
-            <span className="text-xs text-muted-foreground capitalize">
+            <span className="text-xs text-zinc-500 capitalize">
               {data.imageType} image
             </span>
           )}
@@ -71,9 +71,9 @@ export const ImageInputNode = memo(({ id, data }: ImageInputNodeProps) => {
       <div className="space-y-3">
         {imageUrl ? (
           <div className="relative">
-            <img 
-              src={imageUrl} 
-              alt="Input" 
+            <img
+              src={imageUrl}
+              alt="Input"
               className="w-full h-32 object-cover rounded-lg border border-border"
             />
             <Button
@@ -89,8 +89,8 @@ export const ImageInputNode = memo(({ id, data }: ImageInputNodeProps) => {
           <div
             className={`
               border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
-              transition-colors duration-200 hover:border-primary/50 hover:bg-gradient-glow/50
-              ${isDragOver ? 'border-primary bg-gradient-glow/50' : 'border-border'}
+              transition-colors duration-200 hover:border-zinc-600 hover:bg-zinc-900/50
+              ${isDragOver ? 'border-zinc-500 bg-zinc-900/50' : 'border-zinc-800'}
             `}
             onDrop={handleDrop}
             onDragOver={(e) => {
@@ -100,8 +100,8 @@ export const ImageInputNode = memo(({ id, data }: ImageInputNodeProps) => {
             onDragLeave={() => setIsDragOver(false)}
             onClick={() => fileInputRef.current?.click()}
           >
-            <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
+            <Upload className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
+            <p className="text-sm text-zinc-400">
               Drop image here or click to upload
             </p>
           </div>
@@ -119,7 +119,7 @@ export const ImageInputNode = memo(({ id, data }: ImageInputNodeProps) => {
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-3 !h-3 !bg-blue-500 !border-2 !border-white"
+        className="!w-3 !h-3 !bg-white !border-2 !border-zinc-900 hover:!scale-125 transition-transform"
       />
     </Card>
   );

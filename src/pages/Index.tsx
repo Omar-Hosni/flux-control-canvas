@@ -15,14 +15,25 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Brain, Zap, Settings, Workflow, Image as ImageIcon, Wand2, Palette, Upload, MessageSquare, Sparkles } from 'lucide-react';
+import { Brain, Zap, Settings, Workflow, Image as ImageIcon, Wand2, Palette, Upload, MessageSquare, Sparkles, Film, Clock, Edit, Scan, FileCode, Layers, GitBranch, Lightbulb } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { LiveEdits } from '@/components/LiveEdits';
-import { 
-  RunwareService, 
-  type PreprocessedImage, 
-  type GeneratedImage, 
+import { VideoGeneration } from '@/components/VideoGeneration';
+import { Timeline } from '@/components/Timeline';
+import { TimelineEditing } from '@/components/TimelineEditing';
+import { KeyframeEditing } from '@/components/KeyframeEditing';
+import { ImageMasking } from '@/components/ImageMasking';
+import { ImageVectorizer } from '@/components/ImageVectorizer';
+import { LayeredEditing } from '@/components/LayeredEditing';
+import { LiveLight } from '@/components/LiveLight';
+import { LiveRelight } from '@/components/LiveRelight';
+import { AddLight } from '@/components/AddLight';
+import { CustomControlNet } from '@/components/CustomControlNet';
+import {
+  RunwareService,
+  type PreprocessedImage,
+  type GeneratedImage,
   type GenerateImageParams,
   type ImageToImageParams,
   type FluxKontextParams,
@@ -32,24 +43,26 @@ import {
   type ModelUploadControlNetParams,
   type CaptionParams,
   type TranscriptionParams,
-  type ControlNetPreprocessParams
+  type ControlNetPreprocessParams,
+  type VideoInferenceParams,
+  type VideoInferenceResult
 } from '@/services/RunwareService';
 
 const Index = () => {
   const [apiKey, setApiKey] = useState<string | null>("J9GGKxXu8hDhbW1mXOPaNHBH8S48QnhT");
   const [runwareService, setRunwareService] = useState<RunwareService | null>(null);
   const [activeTab, setActiveTab] = useState<string>("texttoimage");
-  
+
   // Merger states
   const [mergerImages, setMergerImages] = useState<File[]>([]);
   const [mergerPrompt, setMergerPrompt] = useState<string>("");
   const [mergerImageWeights, setMergerImageWeights] = useState<number[]>([]);
-  
+
   // ControlNet states
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedPreprocessor, setSelectedPreprocessor] = useState<string | null>(null);
   const [preprocessedImage, setPreprocessedImage] = useState<PreprocessedImage | null>(null);
-  
+
   // Image-to-Image states
   const [img2imgImage, setImg2imgImage] = useState<File | null>(null);
   const [img2imgStrength, setImg2imgStrength] = useState<number>(0.8);
@@ -58,7 +71,7 @@ const Index = () => {
   const [img2imgWidth, setImg2imgWidth] = useState<number>(1024);
   const [img2imgHeight, setImg2imgHeight] = useState<number>(1024);
   const [img2imgCfgScale, setImg2imgCfgScale] = useState<number>(3.5);
-  
+
   // Tools states
   const [toolImage, setToolImage] = useState<File | null>(null);
   const [toolType, setToolType] = useState<string>("removebg");
@@ -72,7 +85,7 @@ const Index = () => {
   const [outpaintRight, setOutpaintRight] = useState<number>(0);
   const [outpaintBottom, setOutpaintBottom] = useState<number>(0);
   const [outpaintLeft, setOutpaintLeft] = useState<number>(0);
-  
+
   // Flux Kontext states
   const [fluxImage, setFluxImage] = useState<File | null>(null);
   const [fluxImage2, setFluxImage2] = useState<File | null>(null); // For re-scene (scene image)
@@ -83,7 +96,7 @@ const Index = () => {
   const [creativity, setCreativity] = useState<number>(0.8);
   const [fluxKontextPro, setFluxKontextPro] = useState<boolean>(false);
   const [sizeRatio, setSizeRatio] = useState<string>("1:1");
-  
+
   // Flux Kontext LoRA states
   interface FluxLoRA {
     name: string;
@@ -92,7 +105,7 @@ const Index = () => {
     weight: number;
   }
   const [fluxSelectedLoras, setFluxSelectedLoras] = useState<FluxLoRA[]>([]);
-  
+
   // Model Upload states
   const [uploadCategory, setUploadCategory] = useState<string>("checkpoint");
   const [uploadArchitecture, setUploadArchitecture] = useState<string>("");
@@ -126,7 +139,7 @@ const Index = () => {
     { name: 'Realistic', model: 'civitai:796382@1026423', weight: 1 },
     { name: 'Custom AIR Code', model: 'custom', weight: 1 },
   ];
-  
+
   // Common states
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -189,12 +202,12 @@ const Index = () => {
   };
 
   const handlePreprocess = async () => {
-    console.log('Preprocessing attempt:', { 
-      hasImage: !!selectedImage, 
-      preprocessor: selectedPreprocessor, 
-      hasService: !!runwareService 
+    console.log('Preprocessing attempt:', {
+      hasImage: !!selectedImage,
+      preprocessor: selectedPreprocessor,
+      hasService: !!runwareService
     });
-    
+
     if (!selectedImage || !selectedPreprocessor || !runwareService) {
       toast.error('Please select an image and preprocessor');
       return;
@@ -257,7 +270,7 @@ const Index = () => {
     try {
       // Upload the seed image first - use uploadImageForURL for img2img
       const uploadedImageUrl = await runwareService.uploadImageForURL(img2imgImage);
-      
+
       // Use seedImage parameter for image-to-image generation
       const result = await runwareService.generateImage({
         positivePrompt: img2imgPrompt,
@@ -272,7 +285,7 @@ const Index = () => {
         steps: img2imgSteps
       });
 
-      
+
       setGeneratedImages(prev => [result, ...prev]);
       toast.success('Image generated successfully!');
     } catch (error) {
@@ -307,7 +320,7 @@ const Index = () => {
           result = await runwareService.removeBackground({ inputImage: uploadedImageId });
           break;
         case 'upscale':
-          result = await runwareService.upscaleImage({ 
+          result = await runwareService.upscaleImage({
             inputImage: uploadedImageId, // This is now a UUID
             upscaleFactor: upscaleFactor as 2 | 3 | 4
           });
@@ -372,7 +385,7 @@ const Index = () => {
     try {
       // Upload all images and get their URLs
       const uploadedImageUrls: string[] = [];
-      
+
       for (let i = 0; i < mergerImages.length; i++) {
         console.log(`Uploading image ${i + 1}/${mergerImages.length}...`);
         const url = await runwareService.uploadImageForURL(mergerImages[i]);
@@ -447,7 +460,7 @@ const Index = () => {
     try {
       let result;
       const transformationType = fluxType;
-      
+
       // Use custom prompt if provided, otherwise use built-in prompts
       const finalPrompt = fluxPrompt.trim() || getBuiltInPrompt(transformationType);
 
@@ -501,11 +514,11 @@ const Index = () => {
           console.log('Uploading object image...');
           const objectImageUrl = await runwareService.uploadImageForURL(fluxImage!);
           console.log('Object image uploaded:', objectImageUrl);
-          
+
           console.log('Uploading scene image...');
           const sceneImageUrl = await runwareService.uploadImageForURL(fluxImage2!);
           console.log('Scene image uploaded:', sceneImageUrl);
-          
+
           result = await runwareService.generateReScene(
             objectImageUrl,
             sceneImageUrl,
@@ -519,7 +532,7 @@ const Index = () => {
           // Multiple image operation - upload images sequentially to avoid conflicts
           console.log(`Uploading ${fluxImages.length} images for remix...`);
           const uploadedImageUrls: string[] = [];
-          
+
           for (let i = 0; i < fluxImages.length; i++) {
             console.log(`Uploading image ${i + 1}/${fluxImages.length}...`);
             const url = await runwareService.uploadImageForURL(fluxImages[i]);
@@ -528,7 +541,7 @@ const Index = () => {
             // Add small delay between uploads to prevent conflicts
             await new Promise(resolve => setTimeout(resolve, 200));
           }
-          
+
           result = await runwareService.generateReMix(
             uploadedImageUrls,
             fluxKontextPro,
@@ -559,7 +572,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b border-border bg-ai-surface">
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="max-w-[1920px] mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-2 rounded-lg bg-gradient-primary">
@@ -597,1626 +610,1736 @@ const Index = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-[1920px] mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="texttoimage" className="gap-2">
-              <Zap className="w-4 h-4" />
-              Text-to-Image
-            </TabsTrigger>
-            <TabsTrigger value="img2img" className="gap-2">
-              <ImageIcon className="w-4 h-4" />
-              Image-to-Image
-            </TabsTrigger>
-            <TabsTrigger value="merger" className="gap-2">
-              <Palette className="w-4 h-4" />
-              Merger (Re-mix)
-            </TabsTrigger>
-            <TabsTrigger value="tools" className="gap-2">
-              <Wand2 className="w-4 h-4" />
-              Tools
-            </TabsTrigger>
-            <TabsTrigger value="flux" className="gap-2">
-              <Palette className="w-4 h-4" />
-              Flux Kontext
-            </TabsTrigger>
-            <TabsTrigger value="modelupload" className="gap-2">
-              <Upload className="w-4 h-4" />
-              Model Upload
-            </TabsTrigger>
-            <TabsTrigger value="caption" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Caption
-            </TabsTrigger>
-            <TabsTrigger value="liveedits" className="gap-2">
-              <Wand2 className="w-4 h-4" />
-              Live Edits
-            </TabsTrigger>
-          </TabsList>
-          {/* Text-to-Image Tab */}
-          <TabsContent value="texttoimage">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left Column - Upload & Preprocessing */}
-              <div className="lg:col-span-1 space-y-6">
-                <Card className="p-6 bg-ai-surface border-border shadow-card">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <Zap className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Input & Processing
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Upload and preprocess your control image
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    <ImageUpload
-                      onImageSelect={handleImageSelect}
-                      selectedImage={selectedImage}
-                    />
-                    
-                    <Separator className="bg-border" />
-                    
-                    <ControlNetSelector
-                      selectedPreprocessor={selectedPreprocessor}
-                      onPreprocessorSelect={setSelectedPreprocessor}
-                      onPreprocess={handlePreprocess}
-                      isProcessing={isProcessing}
-                      disabled={!selectedImage}
-                    />
-                  </div>
-                </Card>
-
-                {preprocessedImage && (
-                  <PreprocessPreview
-                    preprocessedImage={preprocessedImage}
-                    originalImage={selectedImage}
-                  />
-                )}
-              </div>
-
-              {/* Middle Column - Generation Settings */}
-              <div className="lg:col-span-1">
-                <GenerationSettings
-                  onGenerate={handleGenerate}
-                  isGenerating={isGenerating}
-                  hasPreprocessedImage={!!preprocessedImage}
-                  preprocessedImageUrl={preprocessedImage?.imageURL}
-                />
-              </div>
-
-              {/* Right Column - Results */}
-              <div className="lg:col-span-1">
-                <ResultsGallery
-                  results={generatedImages}
-                  isGenerating={isGenerating}
-                />
+          <div className="flex gap-6">
+            {/* Left Sidebar Navigation */}
+            <div className="w-64 flex-shrink-0">
+              <div className="sticky top-4">
+                <TabsList className="flex flex-col w-full h-auto bg-background border border-border rounded-lg p-2 gap-1 max-h-[calc(100vh-120px)] overflow-y-auto">
+                  <TabsTrigger value="texttoimage" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Zap className="w-4 h-4" />
+                    Text-to-Image
+                  </TabsTrigger>
+                  <TabsTrigger value="img2img" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <ImageIcon className="w-4 h-4" />
+                    Image-to-Image
+                  </TabsTrigger>
+                  <TabsTrigger value="videogen" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Film className="w-4 h-4" />
+                    Video Generation
+                  </TabsTrigger>
+                  <TabsTrigger value="merger" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Palette className="w-4 h-4" />
+                    Merger (Re-mix)
+                  </TabsTrigger>
+                  <TabsTrigger value="tools" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Wand2 className="w-4 h-4" />
+                    Tools
+                  </TabsTrigger>
+                  <TabsTrigger value="flux" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Palette className="w-4 h-4" />
+                    Flux Kontext
+                  </TabsTrigger>
+                  <TabsTrigger value="modelupload" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Upload className="w-4 h-4" />
+                    Model Upload
+                  </TabsTrigger>
+                  <TabsTrigger value="caption" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <MessageSquare className="w-4 h-4" />
+                    Caption
+                  </TabsTrigger>
+                  <TabsTrigger value="liveedits" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Wand2 className="w-4 h-4" />
+                    Live Edits
+                  </TabsTrigger>
+                  <TabsTrigger value="timeline" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Clock className="w-4 h-4" />
+                    Timeline
+                  </TabsTrigger>
+                  <TabsTrigger value="timelineediting" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Edit className="w-4 h-4" />
+                    Timeline Editing
+                  </TabsTrigger>
+                  <TabsTrigger value="keyframeediting" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Film className="w-4 h-4" />
+                    Keyframe Editing
+                  </TabsTrigger>
+                  <TabsTrigger value="imagemasking" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Scan className="w-4 h-4" />
+                    Image Masking
+                  </TabsTrigger>
+                  <TabsTrigger value="imagevectorizer" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <FileCode className="w-4 h-4" />
+                    Image Vectorizer
+                  </TabsTrigger>
+                  <TabsTrigger value="customcn" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <GitBranch className="w-4 h-4" />
+                    Custom CN
+                  </TabsTrigger>
+                  <TabsTrigger value="layeredediting" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Layers className="w-4 h-4" />
+                    Layered Editing
+                  </TabsTrigger>
+                  <TabsTrigger value="livelight" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Lightbulb className="w-4 h-4" />
+                    Live Light
+                  </TabsTrigger>
+                  <TabsTrigger value="liverelight" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Lightbulb className="w-4 h-4" />
+                    Live Relight
+                  </TabsTrigger>
+                  <TabsTrigger value="addlight" className="w-full justify-start gap-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Lightbulb className="w-4 h-4" />
+                    Add Light
+                  </TabsTrigger>
+                </TabsList>
               </div>
             </div>
-          </TabsContent>
 
-          {/* Image-to-Image Tab */}
-          <TabsContent value="img2img">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1">
-                <Card className="p-6 bg-ai-surface border-border shadow-card">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <ImageIcon className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Image Input
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Upload base image to transform
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Upload Image</Label>
-                      <Button
-                        variant="outline"
-                        className="w-full h-32 border-dashed"
-                        onClick={() => document.getElementById('img2img-input')?.click()}
-                      >
-                        <Upload className="w-6 h-6 mr-2" />
-                        {img2imgImage ? img2imgImage.name : 'Choose Image'}
-                      </Button>
-                      <input
-                        id="img2img-input"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setImg2imgImage(e.target.files?.[0] || null)}
-                        className="hidden"
-                      />
-                    </div>
-                    
-                    {img2imgImage && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <img
-                          src={URL.createObjectURL(img2imgImage)}
-                          alt="Input"
-                          className="w-full h-48 object-cover"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              </div>
-
-              <div className="lg:col-span-1">
-                <Card className="p-6 bg-ai-surface border-border shadow-card">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <Settings className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Settings
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Configure transformation parameters
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Prompt</Label>
-                      <Textarea
-                        value={img2imgPrompt}
-                        onChange={(e) => setImg2imgPrompt(e.target.value)}
-                        placeholder="Describe the transformation..."
-                        className="h-24"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Creativity: {(img2imgStrength * 100).toFixed(0)}%
-                      </Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Higher values allow more creative deviation from the seed image
-                      </p>
-                      <Slider
-                        value={[img2imgStrength]}
-                        onValueChange={(value) => setImg2imgStrength(value[0])}
-                        max={1}
-                        min={0}
-                        step={0.1}
-                        className="mt-2"
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Width: {img2imgWidth}px
-                        </Label>
-                        <Slider
-                          value={[img2imgWidth]}
-                          onValueChange={(value) => setImg2imgWidth(value[0])}
-                          min={512}
-                          max={1536}
-                          step={64}
-                          className="mt-2"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Height: {img2imgHeight}px
-                        </Label>
-                        <Slider
-                          value={[img2imgHeight]}
-                          onValueChange={(value) => setImg2imgHeight(value[0])}
-                          min={512}
-                          max={1536}
-                          step={64}
-                          className="mt-2"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">
-                        CFG Scale: {img2imgCfgScale}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Controls adherence to prompt (higher = more strict)
-                      </p>
-                      <Slider
-                        value={[img2imgCfgScale]}
-                        onValueChange={(value) => setImg2imgCfgScale(value[0])}
-                        min={1}
-                        max={20}
-                        step={0.5}
-                        className="mt-2"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Steps: {img2imgSteps}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Number of generation steps (higher = better quality, slower)
-                      </p>
-                      <Slider
-                        value={[img2imgSteps]}
-                        onValueChange={(value) => setImg2imgSteps(value[0])}
-                        max={100}
-                        min={10}
-                        step={5}
-                        className="mt-2"
-                      />
-                    </div>
-                    
-                    <Button
-                      onClick={handleImg2ImgGenerate}
-                      disabled={!img2imgImage || !img2imgPrompt || isGenerating}
-                      className="w-full"
-                    >
-                      {isGenerating ? 'Generating...' : 'Generate'}
-                    </Button>
-                  </div>
-                </Card>
-              </div>
-
-              <div className="lg:col-span-1">
-                <ResultsGallery
-                  results={generatedImages}
-                  isGenerating={isGenerating}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Merger Tab */}
-          <TabsContent value="merger">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1">
-                <Card className="p-6 bg-ai-surface border-border shadow-card">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <Palette className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Merger (Re-mix)
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Merge multiple images using ipAdapters
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Upload Images (Multiple)</Label>
-                      <Button
-                        variant="outline"
-                        className="w-full h-32 border-dashed"
-                        onClick={() => document.getElementById('merger-input')?.click()}
-                      >
-                        <Upload className="w-6 h-6 mr-2" />
-                        {mergerImages.length > 0 ? `${mergerImages.length} images selected` : 'Choose Multiple Images'}
-                      </Button>
-                      <input
-                        id="merger-input"
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          setMergerImages(files);
-                          // Initialize weights array with default values
-                          setMergerImageWeights(files.map(() => 1.0));
-                        }}
-                        className="hidden"
-                      />
-                    </div>
-                    
-                    {mergerImages.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2">
-                        {mergerImages.slice(0, 4).map((img, index) => (
-                          <div key={index} className="border rounded-lg overflow-hidden relative">
-                            <img
-                              src={URL.createObjectURL(img)}
-                              alt={`Input ${index + 1}`}
-                              className="w-full h-24 object-cover"
-                            />
-                            <div className="absolute top-1 right-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
-                              {index + 1}
-                            </div>
-                          </div>
-                        ))}
-                        {mergerImages.length > 4 && (
-                          <div className="border rounded-lg flex items-center justify-center bg-gray-100">
-                            <span className="text-sm text-gray-600">+{mergerImages.length - 4} more</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              </div>
-
-              <div className="lg:col-span-1">
-                <Card className="p-6 bg-ai-surface border-border shadow-card">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <Settings className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Merger Settings
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Configure merging parameters
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Prompt</Label>
-                      <Textarea
-                        value={mergerPrompt}
-                        onChange={(e) => setMergerPrompt(e.target.value)}
-                        placeholder="Describe how to merge the images..."
-                        className="h-24"
-                      />
-                    </div>
-                    
-                    {mergerImages.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-medium">Image Weights</Label>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          Adjust the influence of each image (0.0 - 2.0)
-                        </p>
-                        <div className="space-y-3">
-                          {mergerImages.map((img, index) => (
-                            <div key={index} className="flex items-center gap-3">
-                              <span className="text-sm font-medium w-16">
-                                Image {index + 1}:
-                              </span>
-                              <Slider
-                                value={[mergerImageWeights[index] || 1.0]}
-                                onValueChange={(value) => {
-                                  const newWeights = [...mergerImageWeights];
-                                  newWeights[index] = value[0];
-                                  setMergerImageWeights(newWeights);
-                                }}
-                                min={0}
-                                max={2}
-                                step={0.1}
-                                className="flex-1"
-                              />
-                              <span className="text-sm text-muted-foreground w-8">
-                                {(mergerImageWeights[index] || 1.0).toFixed(1)}
-                              </span>
-                            </div>
-                          ))}
+            {/* Main Content Area */}
+            <div className="flex-1 min-w-0">
+              {/* Text-to-Image Tab */}
+              <TabsContent value="texttoimage">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Left Column - Upload & Preprocessing */}
+                  <div className="lg:col-span-1 space-y-6">
+                    <Card className="p-6 bg-ai-surface border-border shadow-card">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-gradient-primary">
+                          <Zap className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Input & Processing
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Upload and preprocess your control image
+                          </p>
                         </div>
                       </div>
-                    )}
-                    
-                    <Button
-                      onClick={handleMergerGenerate}
-                      disabled={mergerImages.length === 0 || !mergerPrompt || isGenerating}
-                      className="w-full"
-                    >
-                      {isGenerating ? 'Generating...' : 'Generate Merged Image'}
-                    </Button>
-                  </div>
-                </Card>
-              </div>
 
-              <div className="lg:col-span-1">
-                <ResultsGallery
-                  results={generatedImages}
-                  isGenerating={isGenerating}
-                />
-              </div>
-            </div>
-          </TabsContent>
+                      <div className="space-y-6">
+                        <ImageUpload
+                          onImageSelect={handleImageSelect}
+                          selectedImage={selectedImage}
+                        />
 
-          {/* Tools Tab */}
-          <TabsContent value="tools">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1">
-                <Card className="p-6 bg-ai-surface border-border shadow-card">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <Wand2 className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Image Tools
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Process images with AI tools
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Upload Image</Label>
-                      <Button
-                        variant="outline"
-                        className="w-full h-32 border-dashed"
-                        onClick={() => document.getElementById('tool-input')?.click()}
-                      >
-                        <Upload className="w-6 h-6 mr-2" />
-                        {toolImage ? toolImage.name : 'Choose Image'}
-                      </Button>
-                      <input
-                        id="tool-input"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setToolImage(e.target.files?.[0] || null)}
-                        className="hidden"
-                      />
-                    </div>
-                    
-                    {toolImage && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <img
-                          src={URL.createObjectURL(toolImage)}
-                          alt="Input"
-                          className="w-full h-48 object-cover"
+                        <Separator className="bg-border" />
+
+                        <ControlNetSelector
+                          selectedPreprocessor={selectedPreprocessor}
+                          onPreprocessorSelect={setSelectedPreprocessor}
+                          onPreprocess={handlePreprocess}
+                          isProcessing={isProcessing}
+                          disabled={!selectedImage}
                         />
                       </div>
-                    )}
-                  </div>
-                </Card>
-              </div>
+                    </Card>
 
-              <div className="lg:col-span-1">
-                <Card className="p-6 bg-ai-surface border-border shadow-card">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <Settings className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Tool Settings
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Configure processing options
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Tool Type</Label>
-                      <Select value={toolType} onValueChange={setToolType}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="removebg">Remove Background</SelectItem>
-                          <SelectItem value="upscale">Upscale Image</SelectItem>
-                          <SelectItem value="inpaint">Inpaint</SelectItem>
-                          <SelectItem value="outpaint">Outpaint</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {toolType === 'upscale' && (
-                      <>
-                        <div>
-                          <Label className="text-sm font-medium">Scale Factor</Label>
-                          <Select 
-                            value={String(upscaleFactor)} 
-                            onValueChange={(value) => setUpscaleFactor(Number(value))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="2">2x</SelectItem>
-                               <SelectItem value="3">3x</SelectItem>
-                               <SelectItem value="4">4x</SelectItem>
-                             </SelectContent>
-                          </Select>
-                        </div>
-                        
-                      </>
+                    {preprocessedImage && (
+                      <PreprocessPreview
+                        preprocessedImage={preprocessedImage}
+                        originalImage={selectedImage}
+                      />
                     )}
-                    
-                    {toolType === 'inpaint' && (
-                      <>
+                  </div>
+
+                  {/* Middle Column - Generation Settings */}
+                  <div className="lg:col-span-1">
+                    <GenerationSettings
+                      onGenerate={handleGenerate}
+                      isGenerating={isGenerating}
+                      hasPreprocessedImage={!!preprocessedImage}
+                      preprocessedImageUrl={preprocessedImage?.imageURL}
+                    />
+                  </div>
+
+                  {/* Right Column - Results */}
+                  <div className="lg:col-span-1">
+                    <ResultsGallery
+                      results={generatedImages}
+                      isGenerating={isGenerating}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Video Generation Tab */}
+              <TabsContent value="videogen">
+                {runwareService && <VideoGeneration runwareService={runwareService} />}
+              </TabsContent>
+
+              {/* Timeline Tab */}
+              <TabsContent value="timeline">
+                <Timeline />
+              </TabsContent>
+
+              {/* Timeline Editing Tab */}
+              <TabsContent value="timelineediting">
+                {runwareService && <TimelineEditing runwareService={runwareService} />}
+              </TabsContent>
+
+              {/* Keyframe Editing Tab */}
+              <TabsContent value="keyframeediting">
+                <KeyframeEditing />
+              </TabsContent>
+
+              {/* Image Masking Tab */}
+              <TabsContent value="imagemasking">
+                {runwareService && <ImageMasking runwareService={runwareService} />}
+              </TabsContent>
+
+              {/* Image Vectorizer Tab */}
+              <TabsContent value="imagevectorizer">
+                {runwareService && <ImageVectorizer runwareService={runwareService} />}
+              </TabsContent>
+
+              {/* Custom CN Tab */}
+              <TabsContent value="customcn">
+                <CustomControlNet />
+              </TabsContent>
+
+              {/* Layered Editing Tab */}
+              <TabsContent value="layeredediting">
+                {runwareService && <LayeredEditing runwareService={runwareService} />}
+              </TabsContent>
+
+              {/* Live Light Tab */}
+              <TabsContent value="livelight">
+                {runwareService && <LiveLight runwareService={runwareService} />}
+              </TabsContent>
+
+              {/* Live Relight Tab */}
+              <TabsContent value="liverelight">
+                {runwareService && <LiveRelight runwareService={runwareService} />}
+              </TabsContent>
+
+              {/* Add Light Tab */}
+              <TabsContent value="addlight">
+                <AddLight />
+              </TabsContent>
+
+              {/* Image-to-Image Tab */}
+              <TabsContent value="img2img">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-1">
+                    <Card className="p-6 bg-ai-surface border-border shadow-card">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-gradient-primary">
+                          <ImageIcon className="w-5 h-5 text-white" />
+                        </div>
                         <div>
-                          <Label className="text-sm font-medium">Mask Image</Label>
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Image Input
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Upload base image to transform
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium">Upload Image</Label>
                           <Button
                             variant="outline"
-                            className="w-full"
-                            onClick={() => document.getElementById('mask-input')?.click()}
+                            className="w-full h-32 border-dashed"
+                            onClick={() => document.getElementById('img2img-input')?.click()}
                           >
-                            <Upload className="w-4 h-4 mr-2" />
-                            {maskImage ? 'Change Mask' : 'Upload Mask'}
+                            <Upload className="w-6 h-6 mr-2" />
+                            {img2imgImage ? img2imgImage.name : 'Choose Image'}
                           </Button>
                           <input
-                            id="mask-input"
+                            id="img2img-input"
                             type="file"
                             accept="image/*"
-                            onChange={(e) => setMaskImage(e.target.files?.[0] || null)}
+                            onChange={(e) => setImg2imgImage(e.target.files?.[0] || null)}
                             className="hidden"
                           />
                         </div>
-                        
-                        <div>
-                          <Label className="text-sm font-medium">Inpaint Prompt</Label>
-                          <Textarea
-                            value={inpaintPrompt}
-                            onChange={(e) => setInpaintPrompt(e.target.value)}
-                            placeholder="Describe what to fill..."
-                            className="h-16"
-                          />
-                        </div>
-                      </>
-                    )}
-                    
-                    {toolType === 'outpaint' && (
-                      <>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label className="text-sm font-medium">Width</Label>
-                            <Input
-                              type="number"
-                              value={outpaintWidth}
-                              onChange={(e) => setOutpaintWidth(Number(e.target.value))}
-                              min={128}
-                              max={2048}
-                              step={64}
-                              className="h-10"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium">Height</Label>
-                            <Input
-                              type="number"
-                              value={outpaintHeight}
-                              onChange={(e) => setOutpaintHeight(Number(e.target.value))}
-                              min={128}
-                              max={2048}
-                              step={64}
-                              className="h-10"
-                            />
-                          </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm font-medium">Outpaint Values (px)</Label>
-                          <div className="grid grid-cols-2 gap-4 mt-2">
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Top</Label>
-                              <Input
-                                type="number"
-                                value={outpaintTop}
-                                onChange={(e) => setOutpaintTop(Number(e.target.value))}
-                                min={0}
-                                step={64}
-                                className="h-10"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Right</Label>
-                              <Input
-                                type="number"
-                                value={outpaintRight}
-                                onChange={(e) => setOutpaintRight(Number(e.target.value))}
-                                min={0}
-                                step={64}
-                                className="h-10"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Bottom</Label>
-                              <Input
-                                type="number"
-                                value={outpaintBottom}
-                                onChange={(e) => setOutpaintBottom(Number(e.target.value))}
-                                min={0}
-                                step={64}
-                                className="h-10"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Left</Label>
-                              <Input
-                                type="number"
-                                value={outpaintLeft}
-                                onChange={(e) => setOutpaintLeft(Number(e.target.value))}
-                                min={0}
-                                step={64}
-                                className="h-10"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium">Outpaint Prompt</Label>
-                          <Textarea
-                            value={outpaintPrompt}
-                            onChange={(e) => setOutpaintPrompt(e.target.value)}
-                            placeholder="Describe what to extend..."
-                            className="h-16"
-                          />
-                        </div>
-                      </>
-                    )}
-                    
-                    <Button
-                      onClick={handleToolProcess}
-                      disabled={!toolImage || isProcessing}
-                      className="w-full"
-                    >
-                      {isProcessing ? 'Processing...' : 'Process Image'}
-                    </Button>
-                  </div>
-                </Card>
-              </div>
-
-              <div className="lg:col-span-1">
-                <ResultsGallery
-                  results={generatedImages}
-                  isGenerating={isProcessing}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Flux Kontext Tab */}
-          <TabsContent value="flux">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-               <div className="lg:col-span-1">
-                <Card className="p-6 bg-ai-surface border-border shadow-card">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <Palette className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Flux Kontext
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Advanced image transformations
-                      </p>
-                    </div>
-                  </div>
-                   
-                  <div className="space-y-4">
-                    {/* Primary Image Upload */}
-                    <div>
-                      <Label className="text-sm font-medium">
-                        {fluxType === 'rescene' ? 'Object Image' : fluxType === 'remix' ? 'Images (Multiple)' : 'Upload Image'}
-                      </Label>
-                      <Button
-                        variant="outline"
-                        className="w-full h-32 border-dashed"
-                        onClick={() => {
-                          if (fluxType === 'remix') {
-                            document.getElementById('flux-multiple-input')?.click();
-                          } else {
-                            document.getElementById('flux-input')?.click();
-                          }
-                        }}
-                      >
-                        <Upload className="w-6 h-6 mr-2" />
-                        {fluxType === 'remix' 
-                          ? (fluxImages.length > 0 ? `${fluxImages.length} images selected` : 'Choose Multiple Images')
-                          : (fluxImage ? fluxImage.name : 'Choose Image')
-                        }
-                      </Button>
-                      
-                      {/* Single image input */}
-                      <input
-                        id="flux-input"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setFluxImage(e.target.files?.[0] || null)}
-                        className="hidden"
-                      />
-                      
-                      {/* Multiple images input */}
-                      <input
-                        id="flux-multiple-input"
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          setFluxImages(files);
-                        }}
-                        className="hidden"
-                      />
-                    </div>
-
-                    {/* Second Image for Re-scene */}
-                    {fluxType === 'rescene' && (
-                      <div>
-                        <Label className="text-sm font-medium">Scene Image</Label>
-                        <Button
-                          variant="outline"
-                          className="w-full h-32 border-dashed"
-                          onClick={() => document.getElementById('flux-scene-input')?.click()}
-                        >
-                          <Upload className="w-6 h-6 mr-2" />
-                          {fluxImage2 ? fluxImage2.name : 'Choose Scene Image'}
-                        </Button>
-                        <input
-                          id="flux-scene-input"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => setFluxImage2(e.target.files?.[0] || null)}
-                          className="hidden"
-                        />
-                      </div>
-                    )}
-                    
-                    {/* Image Previews */}
-                    {fluxType === 'remix' && fluxImages.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2">
-                        {fluxImages.slice(0, 4).map((img, index) => (
-                          <div key={index} className="border rounded-lg overflow-hidden relative">
+                        {img2imgImage && (
+                          <div className="border rounded-lg overflow-hidden">
                             <img
-                              src={URL.createObjectURL(img)}
-                              alt={`Input ${index + 1}`}
-                              className="w-full h-24 object-cover"
+                              src={URL.createObjectURL(img2imgImage)}
+                              alt="Input"
+                              className="w-full h-48 object-cover"
                             />
-                            <div className="absolute top-1 right-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
-                              {index + 1}
-                            </div>
-                          </div>
-                        ))}
-                        {fluxImages.length > 4 && (
-                          <div className="border rounded-lg flex items-center justify-center bg-gray-100">
-                            <span className="text-sm text-gray-600">+{fluxImages.length - 4} more</span>
                           </div>
                         )}
                       </div>
-                    )}
-                    
-                    {fluxType !== 'remix' && fluxImage && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <img
-                          src={URL.createObjectURL(fluxImage)}
-                          alt="Input"
-                          className="w-full h-48 object-cover"
-                        />
-                      </div>
-                    )}
-
-                    {fluxType === 'rescene' && fluxImage2 && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <img
-                          src={URL.createObjectURL(fluxImage2)}
-                          alt="Scene"
-                          className="w-full h-48 object-cover"
-                        />
-                      </div>
-                    )}
+                    </Card>
                   </div>
-                </Card>
-              </div>
 
-              <div className="lg:col-span-1">
-                <Card className="p-6 bg-ai-surface border-border shadow-card">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <Settings className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Flux Settings
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Configure transformation type
-                      </p>
-                    </div>
-                  </div>
-                  
-                   <div className="space-y-4">
-                     <div>
-                       <Label className="text-sm font-medium flex items-center gap-2">
-                         Flux Kontext Pro
-                         <input
-                           type="checkbox"
-                           checked={fluxKontextPro}
-                           onChange={(e) => setFluxKontextPro(e.target.checked)}
-                           className="w-4 h-4 rounded border-border"
-                         />
-                       </Label>
-                       <p className="text-xs text-muted-foreground">
-                         Use advanced model with size ratio control
-                       </p>
-                     </div>
+                  <div className="lg:col-span-1">
+                    <Card className="p-6 bg-ai-surface border-border shadow-card">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-gradient-primary">
+                          <Settings className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Settings
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Configure transformation parameters
+                          </p>
+                        </div>
+                      </div>
 
-                      {fluxKontextPro ? (
+                      <div className="space-y-4">
                         <div>
-                          <Label className="text-sm font-medium">Size Ratio</Label>
-                          <Select value={sizeRatio} onValueChange={setSizeRatio}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1:1">1:1 (1024×1024)</SelectItem>
-                              <SelectItem value="21:9">21:9 (1568×672)</SelectItem>
-                              <SelectItem value="16:9">16:9 (1456×816)</SelectItem>
-                              <SelectItem value="4:3">4:3 (1216×912)</SelectItem>
-                              <SelectItem value="3:2">3:2 (1344×896)</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Label className="text-sm font-medium">Prompt</Label>
+                          <Textarea
+                            value={img2imgPrompt}
+                            onChange={(e) => setImg2imgPrompt(e.target.value)}
+                            placeholder="Describe the transformation..."
+                            className="h-24"
+                          />
                         </div>
-                      ) : (
-                        <div>
-                          <Label className="text-sm font-medium">Transformation Type</Label>
-                          <Select value={fluxType} onValueChange={setFluxType}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="reference">Reference</SelectItem>
-                               <SelectItem value="reimagine">Re-imagine</SelectItem>
-                               <SelectItem value="rescene">Re-scene</SelectItem>
-                               <SelectItem value="reangle">Re-angle</SelectItem>
-                             </SelectContent>
-                          </Select>
-                        </div>
-                      )}
 
-                      {/* Show transformation types for Kontext Pro too */}
-                      {fluxKontextPro && (
-                        <div>
-                          <Label className="text-sm font-medium">Transformation Type</Label>
-                          <Select value={fluxType} onValueChange={setFluxType}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="reference">Reference</SelectItem>
-                               <SelectItem value="reimagine">Re-imagine</SelectItem>
-                               <SelectItem value="rescene">Re-scene</SelectItem>
-                               <SelectItem value="reangle">Re-angle</SelectItem>
-                             </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    
-                      {fluxType === 'reference' && (
-                        <div>
-                          <Label className="text-sm font-medium">Reference Type</Label>
-                          <Select value={referenceType} onValueChange={setReferenceType}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="style">Style</SelectItem>
-                              <SelectItem value="product">Product</SelectItem>
-                              <SelectItem value="character">Character</SelectItem>
-                              <SelectItem value="composition">Composition</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                      
-                      {fluxType === 'reimagine' && (
                         <div>
                           <Label className="text-sm font-medium">
-                            Creativity: {(creativity * 100).toFixed(0)}%
+                            Creativity: {(img2imgStrength * 100).toFixed(0)}%
                           </Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Higher values allow more creative deviation from the seed image
+                          </p>
                           <Slider
-                            value={[creativity]}
-                            onValueChange={(value) => setCreativity(value[0])}
+                            value={[img2imgStrength]}
+                            onValueChange={(value) => setImg2imgStrength(value[0])}
                             max={1}
                             min={0}
                             step={0.1}
                             className="mt-2"
                           />
                         </div>
-                      )}
-                    
-                     <div>
-                       <Label className="text-sm font-medium">Prompt (Optional)</Label>
-                       <Textarea
-                         value={fluxPrompt}
-                         onChange={(e) => setFluxPrompt(e.target.value)}
-                         placeholder={`Leave empty to use built-in prompt for ${fluxType}...`}
-                         className="h-24"
-                       />
-                       <p className="text-xs text-muted-foreground mt-1">
-                         Built-in prompt: "{getBuiltInPrompt(fluxType)}"
-                       </p>
-                     </div>
 
-                     {/* LoRA Selection */}
-                     <div className="space-y-3 p-4 bg-ai-surface-elevated rounded-lg border border-border">
-                       <div className="flex items-center justify-between">
-                         <div className="flex items-center gap-2">
-                           <Palette className="w-4 h-4 text-primary" />
-                           <Label className="text-sm font-medium">LoRA Models</Label>
-                         </div>
-                         <Button 
-                           variant="outline" 
-                           size="sm" 
-                           onClick={handleFluxAddLora}
-                           disabled={fluxSelectedLoras.length >= 4}
-                         >
-                           Add LoRA
-                         </Button>
-                       </div>
-                       
-                       {fluxSelectedLoras.length === 0 ? (
-                         <p className="text-xs text-muted-foreground">No LoRAs selected</p>
-                       ) : (
-                          <div className="space-y-3">
-                            {fluxSelectedLoras.map((lora, index) => (
-                              <div key={index} className="space-y-2">
-                                <div className="flex items-center gap-3 p-3 bg-ai-surface rounded border">
-                                  <div className="flex-1">
-                                    <Select 
-                                      value={lora.model} 
-                                      onValueChange={(value) => handleFluxLoraChange(index, 'model', value)}
-                                    >
-                                      <SelectTrigger className="h-8">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {AVAILABLE_LORAS.map((availableLora) => (
-                                          <SelectItem key={availableLora.model} value={availableLora.model}>
-                                            {availableLora.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="w-20">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="2"
-                                      step="0.1"
-                                      value={lora.weight}
-                                      onChange={(e) => handleFluxLoraChange(index, 'weight', parseFloat(e.target.value) || 1)}
-                                      className="h-8 text-center"
-                                    />
-                                  </div>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={() => handleFluxRemoveLora(index)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    ×
-                                  </Button>
-                                </div>
-                                {lora.model === 'custom' && (
-                                  <div className="px-3">
-                                    <Textarea
-                                      placeholder="Paste LoRA AIR code here (e.g., civitai:123@1)"
-                                      value={lora.customModel || ''}
-                                      onChange={(e) => handleFluxLoraChange(index, 'customModel', e.target.value)}
-                                      className="h-16 text-xs resize-none"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Width: {img2imgWidth}px
+                            </Label>
+                            <Slider
+                              value={[img2imgWidth]}
+                              onValueChange={(value) => setImg2imgWidth(value[0])}
+                              min={512}
+                              max={1536}
+                              step={64}
+                              className="mt-2"
+                            />
                           </div>
-                       )}
-                     </div>
-                    
-                    <Button
-                      onClick={handleFluxGenerate}
-                      disabled={
-                        isGenerating || 
-                        (fluxType === 'rescene' && (!fluxImage || !fluxImage2)) ||
-                        (fluxType === 'remix' && fluxImages.length < 2) ||
-                        (fluxType !== 'remix' && fluxType !== 'rescene' && !fluxImage)
-                      }
-                      className="w-full"
-                    >
-                      {isGenerating ? 'Generating...' : 'Generate'}
-                    </Button>
-                  </div>
-                </Card>
-              </div>
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Height: {img2imgHeight}px
+                            </Label>
+                            <Slider
+                              value={[img2imgHeight]}
+                              onValueChange={(value) => setImg2imgHeight(value[0])}
+                              min={512}
+                              max={1536}
+                              step={64}
+                              className="mt-2"
+                            />
+                          </div>
+                        </div>
 
-              <div className="lg:col-span-1">
-                <ResultsGallery
-                  results={generatedImages}
-                  isGenerating={isGenerating}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Model Upload Tab */}
-          <TabsContent value="modelupload">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card className="p-6 bg-ai-surface border-border shadow-card">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-gradient-primary">
-                    <Upload className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">Upload Model</h2>
-                    <p className="text-sm text-muted-foreground">Upload checkpoint, LoRA, or ControlNet</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label>Model Type</Label>
-                    <Select value={uploadCategory} onValueChange={setUploadCategory}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="checkpoint">Checkpoint</SelectItem>
-                        <SelectItem value="lora">LoRA</SelectItem>
-                        <SelectItem value="controlnet">ControlNet</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Architecture</Label>
-                    <Input 
-                      value={uploadArchitecture} 
-                      onChange={(e) => setUploadArchitecture(e.target.value)}
-                      placeholder="e.g., sd15, sdxl, flux"
-                    />
-                  </div>
-
-                  {uploadCategory === "controlnet" && (
-                    <div>
-                      <Label>Conditioning</Label>
-                      <Input 
-                        value={uploadConditioning} 
-                        onChange={(e) => setUploadConditioning(e.target.value)}
-                        placeholder="e.g., canny, depth, pose"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <Label>Format</Label>
-                    <Input 
-                      value={uploadFormat} 
-                      onChange={(e) => setUploadFormat(e.target.value)}
-                      placeholder="e.g., safetensors, ckpt"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>AIR Code</Label>
-                    <Input 
-                      value={uploadAir} 
-                      onChange={(e) => setUploadAir(e.target.value)}
-                      placeholder="e.g., civitai:123456@789"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Unique Identifier</Label>
-                    <Input 
-                      value={uploadUniqueId} 
-                      onChange={(e) => setUploadUniqueId(e.target.value)}
-                      placeholder="Unique ID for this model"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Model Name</Label>
-                    <Input 
-                      value={uploadName} 
-                      onChange={(e) => setUploadName(e.target.value)}
-                      placeholder="Display name"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Version</Label>
-                    <Input 
-                      value={uploadVersion} 
-                      onChange={(e) => setUploadVersion(e.target.value)}
-                      placeholder="e.g., v1.0, v2.1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Download URL</Label>
-                    <Input 
-                      value={uploadDownloadURL} 
-                      onChange={(e) => setUploadDownloadURL(e.target.value)}
-                      placeholder="https://..."
-                    />
-                  </div>
-
-                  {uploadCategory !== "controlnet" && (
-                    <div>
-                      <Label>Default Weight</Label>
-                      <Input 
-                        type="number"
-                        min="0"
-                        max="2"
-                        step="0.1"
-                        value={uploadDefaultWeight} 
-                        onChange={(e) => setUploadDefaultWeight(parseFloat(e.target.value) || 1.0)}
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <Label>Hero Image URL</Label>
-                    <Input 
-                      value={uploadHeroImageURL} 
-                      onChange={(e) => setUploadHeroImageURL(e.target.value)}
-                      placeholder="https://..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Tags (comma-separated)</Label>
-                    <Input 
-                      value={uploadTags} 
-                      onChange={(e) => setUploadTags(e.target.value)}
-                      placeholder="tag1, tag2, tag3"
-                    />
-                  </div>
-
-                  {uploadCategory !== "controlnet" && (
-                    <div>
-                      <Label>Trigger Words</Label>
-                      <Textarea 
-                        value={uploadTriggerWords} 
-                        onChange={(e) => setUploadTriggerWords(e.target.value)}
-                        placeholder="Words that activate this model"
-                        rows={2}
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <Label>Short Description</Label>
-                    <Textarea 
-                      value={uploadShortDesc} 
-                      onChange={(e) => setUploadShortDesc(e.target.value)}
-                      placeholder="Brief description"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Comment</Label>
-                    <Textarea 
-                      value={uploadComment} 
-                      onChange={(e) => setUploadComment(e.target.value)}
-                      placeholder="Additional notes"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="private"
-                      checked={uploadPrivate}
-                      onChange={(e) => setUploadPrivate(e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <Label htmlFor="private">Private Model</Label>
-                  </div>
-
-                  <Button
-                    onClick={async () => {
-                      if (!runwareService) {
-                        toast.error('Please set API key first');
-                        return;
-                      }
-
-                      if (!uploadArchitecture || !uploadFormat || !uploadAir || !uploadUniqueId || 
-                          !uploadName || !uploadVersion || !uploadDownloadURL) {
-                        toast.error('Please fill in all required fields');
-                        return;
-                      }
-
-                      setIsGenerating(true);
-                      try {
-                        let params: ModelUploadParams;
-                        const tagsArray = uploadTags.split(',').map(t => t.trim()).filter(Boolean);
-
-                        if (uploadCategory === "checkpoint") {
-                          params = {
-                            category: "checkpoint",
-                            architecture: uploadArchitecture,
-                            format: uploadFormat,
-                            air: uploadAir,
-                            uniqueIdentifier: uploadUniqueId,
-                            name: uploadName,
-                            version: uploadVersion,
-                            downloadURL: uploadDownloadURL,
-                            defaultWeight: uploadDefaultWeight,
-                            private: uploadPrivate,
-                            heroImageURL: uploadHeroImageURL,
-                            tags: tagsArray,
-                            positiveTriggerWords: uploadTriggerWords,
-                            shortDescription: uploadShortDesc,
-                            comment: uploadComment
-                          } as ModelUploadCheckpointParams;
-                        } else if (uploadCategory === "lora") {
-                          params = {
-                            category: "lora",
-                            architecture: uploadArchitecture,
-                            format: uploadFormat,
-                            air: uploadAir,
-                            uniqueIdentifier: uploadUniqueId,
-                            name: uploadName,
-                            version: uploadVersion,
-                            downloadURL: uploadDownloadURL,
-                            defaultWeight: uploadDefaultWeight,
-                            private: uploadPrivate,
-                            heroImageURL: uploadHeroImageURL,
-                            tags: tagsArray,
-                            positiveTriggerWords: uploadTriggerWords,
-                            shortDescription: uploadShortDesc,
-                            comment: uploadComment
-                          } as ModelUploadLoraParams;
-                        } else {
-                          params = {
-                            category: "controlnet",
-                            architecture: uploadArchitecture,
-                            conditioning: uploadConditioning,
-                            format: uploadFormat,
-                            air: uploadAir,
-                            uniqueIdentifier: uploadUniqueId,
-                            name: uploadName,
-                            version: uploadVersion,
-                            downloadUrl: uploadDownloadURL,
-                            private: uploadPrivate,
-                            heroImageUrl: uploadHeroImageURL,
-                            tags: tagsArray,
-                            shortDescription: uploadShortDesc,
-                            comment: uploadComment
-                          } as ModelUploadControlNetParams;
-                        }
-
-                        const result = await runwareService.uploadModel(params);
-                        toast.success(result.message || 'Model uploaded successfully!');
-                        
-                        // Reset form
-                        setUploadArchitecture("");
-                        setUploadFormat("");
-                        setUploadAir("");
-                        setUploadUniqueId("");
-                        setUploadName("");
-                        setUploadVersion("");
-                        setUploadDownloadURL("");
-                        setUploadDefaultWeight(1.0);
-                        setUploadPrivate(false);
-                        setUploadHeroImageURL("");
-                        setUploadTags("");
-                        setUploadTriggerWords("");
-                        setUploadShortDesc("");
-                        setUploadComment("");
-                        setUploadConditioning("");
-                      } catch (error) {
-                        console.error('Model upload failed:', error);
-                        toast.error('Failed to upload model. Please try again.');
-                      } finally {
-                        setIsGenerating(false);
-                      }
-                    }}
-                    disabled={isGenerating}
-                    className="w-full"
-                  >
-                    {isGenerating ? 'Uploading...' : 'Upload Model'}
-                  </Button>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-ai-surface border-border shadow-card">
-                <h3 className="text-lg font-semibold mb-4">API Documentation</h3>
-                <div className="space-y-4 text-sm text-muted-foreground">
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-2">Model Types:</h4>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li><strong>Checkpoint:</strong> Full model weights</li>
-                      <li><strong>LoRA:</strong> Low-Rank Adaptation models</li>
-                      <li><strong>ControlNet:</strong> Conditional control models</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-2">Required Fields:</h4>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>Architecture (e.g., sd15, sdxl, flux)</li>
-                      <li>Format (e.g., safetensors, ckpt)</li>
-                      <li>AIR Code (unique identifier)</li>
-                      <li>Unique Identifier</li>
-                      <li>Model Name & Version</li>
-                      <li>Download URL</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-2">ControlNet Specific:</h4>
-                    <p>The conditioning field specifies the type of control (e.g., canny, depth, pose)</p>
-                  </div>
-                  <div>
-                    <a 
-                      href="https://runware.ai/docs/en/image-inference/model-upload" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      View Full API Documentation →
-                    </a>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Caption Tab */}
-          <TabsContent value="caption">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card className="p-6 bg-ai-surface border-border shadow-card">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-gradient-primary">
-                    <MessageSquare className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">Caption & Transcription</h2>
-                    <p className="text-sm text-muted-foreground">Generate captions for images or transcribe videos</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label>Content Type</Label>
-                    <Select value={captionType} onValueChange={setCaptionType}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="image">Image Caption</SelectItem>
-                        <SelectItem value="video">Video Transcription</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {captionType === "image" ? (
-                    <>
-                      <div>
-                        <Label>Upload Image</Label>
-                        <Button
-                          variant="outline"
-                          className="w-full h-32 border-dashed"
-                          onClick={() => document.getElementById('caption-image-input')?.click()}
-                        >
-                          <Upload className="w-6 h-6 mr-2" />
-                          {captionImage ? captionImage.name : 'Choose Image'}
-                        </Button>
-                        <input
-                          id="caption-image-input"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => setCaptionImage(e.target.files?.[0] || null)}
-                          className="hidden"
-                        />
-                      </div>
-                      
-                      {captionImage && (
-                        <div className="border rounded-lg overflow-hidden">
-                          <img
-                            src={URL.createObjectURL(captionImage)}
-                            alt="Input"
-                            className="w-full h-48 object-cover"
+                        <div>
+                          <Label className="text-sm font-medium">
+                            CFG Scale: {img2imgCfgScale}
+                          </Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Controls adherence to prompt (higher = more strict)
+                          </p>
+                          <Slider
+                            value={[img2imgCfgScale]}
+                            onValueChange={(value) => setImg2imgCfgScale(value[0])}
+                            min={1}
+                            max={20}
+                            step={0.5}
+                            className="mt-2"
                           />
                         </div>
-                      )}
 
+                        <div>
+                          <Label className="text-sm font-medium">
+                            Steps: {img2imgSteps}
+                          </Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Number of generation steps (higher = better quality, slower)
+                          </p>
+                          <Slider
+                            value={[img2imgSteps]}
+                            onValueChange={(value) => setImg2imgSteps(value[0])}
+                            max={100}
+                            min={10}
+                            step={5}
+                            className="mt-2"
+                          />
+                        </div>
+
+                        <Button
+                          onClick={handleImg2ImgGenerate}
+                          disabled={!img2imgImage || !img2imgPrompt || isGenerating}
+                          className="w-full"
+                        >
+                          {isGenerating ? 'Generating...' : 'Generate'}
+                        </Button>
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <ResultsGallery
+                      results={generatedImages}
+                      isGenerating={isGenerating}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Merger Tab */}
+              <TabsContent value="merger">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-1">
+                    <Card className="p-6 bg-ai-surface border-border shadow-card">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-gradient-primary">
+                          <Palette className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Merger (Re-mix)
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Merge multiple images using ipAdapters
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium">Upload Images (Multiple)</Label>
+                          <Button
+                            variant="outline"
+                            className="w-full h-32 border-dashed"
+                            onClick={() => document.getElementById('merger-input')?.click()}
+                          >
+                            <Upload className="w-6 h-6 mr-2" />
+                            {mergerImages.length > 0 ? `${mergerImages.length} images selected` : 'Choose Multiple Images'}
+                          </Button>
+                          <input
+                            id="merger-input"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              setMergerImages(files);
+                              // Initialize weights array with default values
+                              setMergerImageWeights(files.map(() => 1.0));
+                            }}
+                            className="hidden"
+                          />
+                        </div>
+
+                        {mergerImages.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {mergerImages.slice(0, 4).map((img, index) => (
+                              <div key={index} className="border rounded-lg overflow-hidden relative">
+                                <img
+                                  src={URL.createObjectURL(img)}
+                                  alt={`Input ${index + 1}`}
+                                  className="w-full h-24 object-cover"
+                                />
+                                <div className="absolute top-1 right-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                                  {index + 1}
+                                </div>
+                              </div>
+                            ))}
+                            {mergerImages.length > 4 && (
+                              <div className="border rounded-lg flex items-center justify-center bg-gray-100">
+                                <span className="text-sm text-gray-600">+{mergerImages.length - 4} more</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <Card className="p-6 bg-ai-surface border-border shadow-card">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-gradient-primary">
+                          <Settings className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Merger Settings
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Configure merging parameters
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium">Prompt</Label>
+                          <Textarea
+                            value={mergerPrompt}
+                            onChange={(e) => setMergerPrompt(e.target.value)}
+                            placeholder="Describe how to merge the images..."
+                            className="h-24"
+                          />
+                        </div>
+
+                        {mergerImages.length > 0 && (
+                          <div>
+                            <Label className="text-sm font-medium">Image Weights</Label>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Adjust the influence of each image (0.0 - 2.0)
+                            </p>
+                            <div className="space-y-3">
+                              {mergerImages.map((img, index) => (
+                                <div key={index} className="flex items-center gap-3">
+                                  <span className="text-sm font-medium w-16">
+                                    Image {index + 1}:
+                                  </span>
+                                  <Slider
+                                    value={[mergerImageWeights[index] || 1.0]}
+                                    onValueChange={(value) => {
+                                      const newWeights = [...mergerImageWeights];
+                                      newWeights[index] = value[0];
+                                      setMergerImageWeights(newWeights);
+                                    }}
+                                    min={0}
+                                    max={2}
+                                    step={0.1}
+                                    className="flex-1"
+                                  />
+                                  <span className="text-sm text-muted-foreground w-8">
+                                    {(mergerImageWeights[index] || 1.0).toFixed(1)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <Button
+                          onClick={handleMergerGenerate}
+                          disabled={mergerImages.length === 0 || !mergerPrompt || isGenerating}
+                          className="w-full"
+                        >
+                          {isGenerating ? 'Generating...' : 'Generate Merged Image'}
+                        </Button>
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <ResultsGallery
+                      results={generatedImages}
+                      isGenerating={isGenerating}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Tools Tab */}
+              <TabsContent value="tools">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-1">
+                    <Card className="p-6 bg-ai-surface border-border shadow-card">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-gradient-primary">
+                          <Wand2 className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Image Tools
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Process images with AI tools
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium">Upload Image</Label>
+                          <Button
+                            variant="outline"
+                            className="w-full h-32 border-dashed"
+                            onClick={() => document.getElementById('tool-input')?.click()}
+                          >
+                            <Upload className="w-6 h-6 mr-2" />
+                            {toolImage ? toolImage.name : 'Choose Image'}
+                          </Button>
+                          <input
+                            id="tool-input"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setToolImage(e.target.files?.[0] || null)}
+                            className="hidden"
+                          />
+                        </div>
+
+                        {toolImage && (
+                          <div className="border rounded-lg overflow-hidden">
+                            <img
+                              src={URL.createObjectURL(toolImage)}
+                              alt="Input"
+                              className="w-full h-48 object-cover"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <Card className="p-6 bg-ai-surface border-border shadow-card">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-gradient-primary">
+                          <Settings className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Tool Settings
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Configure processing options
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium">Tool Type</Label>
+                          <Select value={toolType} onValueChange={setToolType}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="removebg">Remove Background</SelectItem>
+                              <SelectItem value="upscale">Upscale Image</SelectItem>
+                              <SelectItem value="inpaint">Inpaint</SelectItem>
+                              <SelectItem value="outpaint">Outpaint</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {toolType === 'upscale' && (
+                          <>
+                            <div>
+                              <Label className="text-sm font-medium">Scale Factor</Label>
+                              <Select
+                                value={String(upscaleFactor)}
+                                onValueChange={(value) => setUpscaleFactor(Number(value))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="2">2x</SelectItem>
+                                  <SelectItem value="3">3x</SelectItem>
+                                  <SelectItem value="4">4x</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                          </>
+                        )}
+
+                        {toolType === 'inpaint' && (
+                          <>
+                            <div>
+                              <Label className="text-sm font-medium">Mask Image</Label>
+                              <Button
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => document.getElementById('mask-input')?.click()}
+                              >
+                                <Upload className="w-4 h-4 mr-2" />
+                                {maskImage ? 'Change Mask' : 'Upload Mask'}
+                              </Button>
+                              <input
+                                id="mask-input"
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setMaskImage(e.target.files?.[0] || null)}
+                                className="hidden"
+                              />
+                            </div>
+
+                            <div>
+                              <Label className="text-sm font-medium">Inpaint Prompt</Label>
+                              <Textarea
+                                value={inpaintPrompt}
+                                onChange={(e) => setInpaintPrompt(e.target.value)}
+                                placeholder="Describe what to fill..."
+                                className="h-16"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {toolType === 'outpaint' && (
+                          <>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-sm font-medium">Width</Label>
+                                <Input
+                                  type="number"
+                                  value={outpaintWidth}
+                                  onChange={(e) => setOutpaintWidth(Number(e.target.value))}
+                                  min={128}
+                                  max={2048}
+                                  step={64}
+                                  className="h-10"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm font-medium">Height</Label>
+                                <Input
+                                  type="number"
+                                  value={outpaintHeight}
+                                  onChange={(e) => setOutpaintHeight(Number(e.target.value))}
+                                  min={128}
+                                  max={2048}
+                                  step={64}
+                                  className="h-10"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label className="text-sm font-medium">Outpaint Values (px)</Label>
+                              <div className="grid grid-cols-2 gap-4 mt-2">
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Top</Label>
+                                  <Input
+                                    type="number"
+                                    value={outpaintTop}
+                                    onChange={(e) => setOutpaintTop(Number(e.target.value))}
+                                    min={0}
+                                    step={64}
+                                    className="h-10"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Right</Label>
+                                  <Input
+                                    type="number"
+                                    value={outpaintRight}
+                                    onChange={(e) => setOutpaintRight(Number(e.target.value))}
+                                    min={0}
+                                    step={64}
+                                    className="h-10"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Bottom</Label>
+                                  <Input
+                                    type="number"
+                                    value={outpaintBottom}
+                                    onChange={(e) => setOutpaintBottom(Number(e.target.value))}
+                                    min={0}
+                                    step={64}
+                                    className="h-10"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Left</Label>
+                                  <Input
+                                    type="number"
+                                    value={outpaintLeft}
+                                    onChange={(e) => setOutpaintLeft(Number(e.target.value))}
+                                    min={0}
+                                    step={64}
+                                    className="h-10"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label className="text-sm font-medium">Outpaint Prompt</Label>
+                              <Textarea
+                                value={outpaintPrompt}
+                                onChange={(e) => setOutpaintPrompt(e.target.value)}
+                                placeholder="Describe what to extend..."
+                                className="h-16"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        <Button
+                          onClick={handleToolProcess}
+                          disabled={!toolImage || isProcessing}
+                          className="w-full"
+                        >
+                          {isProcessing ? 'Processing...' : 'Process Image'}
+                        </Button>
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <ResultsGallery
+                      results={generatedImages}
+                      isGenerating={isProcessing}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Flux Kontext Tab */}
+              <TabsContent value="flux">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-1">
+                    <Card className="p-6 bg-ai-surface border-border shadow-card">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-gradient-primary">
+                          <Palette className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Flux Kontext
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Advanced image transformations
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Primary Image Upload */}
+                        <div>
+                          <Label className="text-sm font-medium">
+                            {fluxType === 'rescene' ? 'Object Image' : fluxType === 'remix' ? 'Images (Multiple)' : 'Upload Image'}
+                          </Label>
+                          <Button
+                            variant="outline"
+                            className="w-full h-32 border-dashed"
+                            onClick={() => {
+                              if (fluxType === 'remix') {
+                                document.getElementById('flux-multiple-input')?.click();
+                              } else {
+                                document.getElementById('flux-input')?.click();
+                              }
+                            }}
+                          >
+                            <Upload className="w-6 h-6 mr-2" />
+                            {fluxType === 'remix'
+                              ? (fluxImages.length > 0 ? `${fluxImages.length} images selected` : 'Choose Multiple Images')
+                              : (fluxImage ? fluxImage.name : 'Choose Image')
+                            }
+                          </Button>
+
+                          {/* Single image input */}
+                          <input
+                            id="flux-input"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setFluxImage(e.target.files?.[0] || null)}
+                            className="hidden"
+                          />
+
+                          {/* Multiple images input */}
+                          <input
+                            id="flux-multiple-input"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              setFluxImages(files);
+                            }}
+                            className="hidden"
+                          />
+                        </div>
+
+                        {/* Second Image for Re-scene */}
+                        {fluxType === 'rescene' && (
+                          <div>
+                            <Label className="text-sm font-medium">Scene Image</Label>
+                            <Button
+                              variant="outline"
+                              className="w-full h-32 border-dashed"
+                              onClick={() => document.getElementById('flux-scene-input')?.click()}
+                            >
+                              <Upload className="w-6 h-6 mr-2" />
+                              {fluxImage2 ? fluxImage2.name : 'Choose Scene Image'}
+                            </Button>
+                            <input
+                              id="flux-scene-input"
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => setFluxImage2(e.target.files?.[0] || null)}
+                              className="hidden"
+                            />
+                          </div>
+                        )}
+
+                        {/* Image Previews */}
+                        {fluxType === 'remix' && fluxImages.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {fluxImages.slice(0, 4).map((img, index) => (
+                              <div key={index} className="border rounded-lg overflow-hidden relative">
+                                <img
+                                  src={URL.createObjectURL(img)}
+                                  alt={`Input ${index + 1}`}
+                                  className="w-full h-24 object-cover"
+                                />
+                                <div className="absolute top-1 right-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                                  {index + 1}
+                                </div>
+                              </div>
+                            ))}
+                            {fluxImages.length > 4 && (
+                              <div className="border rounded-lg flex items-center justify-center bg-gray-100">
+                                <span className="text-sm text-gray-600">+{fluxImages.length - 4} more</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {fluxType !== 'remix' && fluxImage && (
+                          <div className="border rounded-lg overflow-hidden">
+                            <img
+                              src={URL.createObjectURL(fluxImage)}
+                              alt="Input"
+                              className="w-full h-48 object-cover"
+                            />
+                          </div>
+                        )}
+
+                        {fluxType === 'rescene' && fluxImage2 && (
+                          <div className="border rounded-lg overflow-hidden">
+                            <img
+                              src={URL.createObjectURL(fluxImage2)}
+                              alt="Scene"
+                              className="w-full h-48 object-cover"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <Card className="p-6 bg-ai-surface border-border shadow-card">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-gradient-primary">
+                          <Settings className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Flux Settings
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Configure transformation type
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium flex items-center gap-2">
+                            Flux Kontext Pro
+                            <input
+                              type="checkbox"
+                              checked={fluxKontextPro}
+                              onChange={(e) => setFluxKontextPro(e.target.checked)}
+                              className="w-4 h-4 rounded border-border"
+                            />
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            Use advanced model with size ratio control
+                          </p>
+                        </div>
+
+                        {fluxKontextPro ? (
+                          <div>
+                            <Label className="text-sm font-medium">Size Ratio</Label>
+                            <Select value={sizeRatio} onValueChange={setSizeRatio}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1:1">1:1 (1024×1024)</SelectItem>
+                                <SelectItem value="21:9">21:9 (1568×672)</SelectItem>
+                                <SelectItem value="16:9">16:9 (1456×816)</SelectItem>
+                                <SelectItem value="4:3">4:3 (1216×912)</SelectItem>
+                                <SelectItem value="3:2">3:2 (1344×896)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : (
+                          <div>
+                            <Label className="text-sm font-medium">Transformation Type</Label>
+                            <Select value={fluxType} onValueChange={setFluxType}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="reference">Reference</SelectItem>
+                                <SelectItem value="reimagine">Re-imagine</SelectItem>
+                                <SelectItem value="rescene">Re-scene</SelectItem>
+                                <SelectItem value="reangle">Re-angle</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {/* Show transformation types for Kontext Pro too */}
+                        {fluxKontextPro && (
+                          <div>
+                            <Label className="text-sm font-medium">Transformation Type</Label>
+                            <Select value={fluxType} onValueChange={setFluxType}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="reference">Reference</SelectItem>
+                                <SelectItem value="reimagine">Re-imagine</SelectItem>
+                                <SelectItem value="rescene">Re-scene</SelectItem>
+                                <SelectItem value="reangle">Re-angle</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {fluxType === 'reference' && (
+                          <div>
+                            <Label className="text-sm font-medium">Reference Type</Label>
+                            <Select value={referenceType} onValueChange={setReferenceType}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="style">Style</SelectItem>
+                                <SelectItem value="product">Product</SelectItem>
+                                <SelectItem value="character">Character</SelectItem>
+                                <SelectItem value="composition">Composition</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {fluxType === 'reimagine' && (
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Creativity: {(creativity * 100).toFixed(0)}%
+                            </Label>
+                            <Slider
+                              value={[creativity]}
+                              onValueChange={(value) => setCreativity(value[0])}
+                              max={1}
+                              min={0}
+                              step={0.1}
+                              className="mt-2"
+                            />
+                          </div>
+                        )}
+
+                        <div>
+                          <Label className="text-sm font-medium">Prompt (Optional)</Label>
+                          <Textarea
+                            value={fluxPrompt}
+                            onChange={(e) => setFluxPrompt(e.target.value)}
+                            placeholder={`Leave empty to use built-in prompt for ${fluxType}...`}
+                            className="h-24"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Built-in prompt: "{getBuiltInPrompt(fluxType)}"
+                          </p>
+                        </div>
+
+                        {/* LoRA Selection */}
+                        <div className="space-y-3 p-4 bg-ai-surface-elevated rounded-lg border border-border">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Palette className="w-4 h-4 text-primary" />
+                              <Label className="text-sm font-medium">LoRA Models</Label>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleFluxAddLora}
+                              disabled={fluxSelectedLoras.length >= 4}
+                            >
+                              Add LoRA
+                            </Button>
+                          </div>
+
+                          {fluxSelectedLoras.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No LoRAs selected</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {fluxSelectedLoras.map((lora, index) => (
+                                <div key={index} className="space-y-2">
+                                  <div className="flex items-center gap-3 p-3 bg-ai-surface rounded border">
+                                    <div className="flex-1">
+                                      <Select
+                                        value={lora.model}
+                                        onValueChange={(value) => handleFluxLoraChange(index, 'model', value)}
+                                      >
+                                        <SelectTrigger className="h-8">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {AVAILABLE_LORAS.map((availableLora) => (
+                                            <SelectItem key={availableLora.model} value={availableLora.model}>
+                                              {availableLora.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="w-20">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max="2"
+                                        step="0.1"
+                                        value={lora.weight}
+                                        onChange={(e) => handleFluxLoraChange(index, 'weight', parseFloat(e.target.value) || 1)}
+                                        className="h-8 text-center"
+                                      />
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleFluxRemoveLora(index)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      ×
+                                    </Button>
+                                  </div>
+                                  {lora.model === 'custom' && (
+                                    <div className="px-3">
+                                      <Textarea
+                                        placeholder="Paste LoRA AIR code here (e.g., civitai:123@1)"
+                                        value={lora.customModel || ''}
+                                        onChange={(e) => handleFluxLoraChange(index, 'customModel', e.target.value)}
+                                        className="h-16 text-xs resize-none"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <Button
+                          onClick={handleFluxGenerate}
+                          disabled={
+                            isGenerating ||
+                            (fluxType === 'rescene' && (!fluxImage || !fluxImage2)) ||
+                            (fluxType === 'remix' && fluxImages.length < 2) ||
+                            (fluxType !== 'remix' && fluxType !== 'rescene' && !fluxImage)
+                          }
+                          className="w-full"
+                        >
+                          {isGenerating ? 'Generating...' : 'Generate'}
+                        </Button>
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <ResultsGallery
+                      results={generatedImages}
+                      isGenerating={isGenerating}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Model Upload Tab */}
+              <TabsContent value="modelupload">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <Card className="p-6 bg-ai-surface border-border shadow-card">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 rounded-lg bg-gradient-primary">
+                        <Upload className="w-5 h-5 text-white" />
+                      </div>
                       <div>
-                        <Label>Caption Model</Label>
-                        <Select value={captionModel} onValueChange={setCaptionModel}>
+                        <h2 className="text-xl font-bold">Upload Model</h2>
+                        <p className="text-sm text-muted-foreground">Upload checkpoint, LoRA, or ControlNet</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Model Type</Label>
+                        <Select value={uploadCategory} onValueChange={setUploadCategory}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="runware:150@2">General</SelectItem>
-                            <SelectItem value="runware:152@50">Age Detection</SelectItem>
-                            <SelectItem value="runware:152@2">Technical Analysis</SelectItem>
-                            <SelectItem value="runware:151@1">Content Identification</SelectItem>
+                            <SelectItem value="checkpoint">Checkpoint</SelectItem>
+                            <SelectItem value="lora">LoRA</SelectItem>
+                            <SelectItem value="controlnet">ControlNet</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div>
-                        <Label>Custom Prompt (Optional)</Label>
-                        <Textarea
-                          value={captionPrompt}
-                          onChange={(e) => setCaptionPrompt(e.target.value)}
-                          placeholder="Analyze the lighting, composition, and camera settings..."
-                          rows={3}
+                        <Label>Architecture</Label>
+                        <Input
+                          value={uploadArchitecture}
+                          onChange={(e) => setUploadArchitecture(e.target.value)}
+                          placeholder="e.g., sd15, sdxl, flux"
                         />
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <Label>Upload Video</Label>
-                        <Button
-                          variant="outline"
-                          className="w-full h-32 border-dashed"
-                          onClick={() => document.getElementById('caption-video-input')?.click()}
-                        >
-                          <Upload className="w-6 h-6 mr-2" />
-                          {captionVideo ? captionVideo.name : 'Choose Video'}
-                        </Button>
-                        <input
-                          id="caption-video-input"
-                          type="file"
-                          accept="video/*"
-                          onChange={(e) => setCaptionVideo(e.target.files?.[0] || null)}
-                          className="hidden"
-                        />
-                      </div>
-                      
-                      {captionVideo && (
-                        <div className="border rounded-lg overflow-hidden">
-                          <video
-                            src={URL.createObjectURL(captionVideo)}
-                            className="w-full h-48 object-cover"
-                            controls
+
+                      {uploadCategory === "controlnet" && (
+                        <div>
+                          <Label>Conditioning</Label>
+                          <Input
+                            value={uploadConditioning}
+                            onChange={(e) => setUploadConditioning(e.target.value)}
+                            placeholder="e.g., canny, depth, pose"
                           />
                         </div>
                       )}
-                    </>
-                  )}
 
-                  <Button
-                    onClick={async () => {
-                      if (!runwareService) {
-                        toast.error('Please set API key first');
-                        return;
-                      }
+                      <div>
+                        <Label>Format</Label>
+                        <Input
+                          value={uploadFormat}
+                          onChange={(e) => setUploadFormat(e.target.value)}
+                          placeholder="e.g., safetensors, ckpt"
+                        />
+                      </div>
 
-                      if (captionType === "image" && !captionImage) {
-                        toast.error('Please select an image');
-                        return;
-                      }
+                      <div>
+                        <Label>AIR Code</Label>
+                        <Input
+                          value={uploadAir}
+                          onChange={(e) => setUploadAir(e.target.value)}
+                          placeholder="e.g., civitai:123456@789"
+                        />
+                      </div>
 
-                      if (captionType === "video" && !captionVideo) {
-                        toast.error('Please select a video');
-                        return;
-                      }
+                      <div>
+                        <Label>Unique Identifier</Label>
+                        <Input
+                          value={uploadUniqueId}
+                          onChange={(e) => setUploadUniqueId(e.target.value)}
+                          placeholder="Unique ID for this model"
+                        />
+                      </div>
 
-                      setIsGenerating(true);
-                      setCaptionResult("");
-                      
-                      try {
-                        let result;
-                        
-                        if (captionType === "image") {
-                          const uploadedImageId = await runwareService.uploadImage(captionImage!);
-                          
-                          const captionParams = {
-                            taskType: "caption" as const,
-                            taskUUID: crypto.randomUUID(),
-                            inputImage: uploadedImageId,
-                            model: captionModel,
-                            ...(captionPrompt && { prompt: captionPrompt })
-                          };
-                          
-                          result = await runwareService.generateCaption(captionParams);
-                        } else {
-                          const uploadedVideoId = await runwareService.uploadImage(captionVideo!);
-                          
-                          const transcriptionParams = {
-                            taskType: "transcription" as const,
-                            taskUUID: crypto.randomUUID(),
-                            model: "memories:1@1",
-                            inputs: {
-                              video: uploadedVideoId
+                      <div>
+                        <Label>Model Name</Label>
+                        <Input
+                          value={uploadName}
+                          onChange={(e) => setUploadName(e.target.value)}
+                          placeholder="Display name"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Version</Label>
+                        <Input
+                          value={uploadVersion}
+                          onChange={(e) => setUploadVersion(e.target.value)}
+                          placeholder="e.g., v1.0, v2.1"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Download URL</Label>
+                        <Input
+                          value={uploadDownloadURL}
+                          onChange={(e) => setUploadDownloadURL(e.target.value)}
+                          placeholder="https://..."
+                        />
+                      </div>
+
+                      {uploadCategory !== "controlnet" && (
+                        <div>
+                          <Label>Default Weight</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="2"
+                            step="0.1"
+                            value={uploadDefaultWeight}
+                            onChange={(e) => setUploadDefaultWeight(parseFloat(e.target.value) || 1.0)}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <Label>Hero Image URL</Label>
+                        <Input
+                          value={uploadHeroImageURL}
+                          onChange={(e) => setUploadHeroImageURL(e.target.value)}
+                          placeholder="https://..."
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Tags (comma-separated)</Label>
+                        <Input
+                          value={uploadTags}
+                          onChange={(e) => setUploadTags(e.target.value)}
+                          placeholder="tag1, tag2, tag3"
+                        />
+                      </div>
+
+                      {uploadCategory !== "controlnet" && (
+                        <div>
+                          <Label>Trigger Words</Label>
+                          <Textarea
+                            value={uploadTriggerWords}
+                            onChange={(e) => setUploadTriggerWords(e.target.value)}
+                            placeholder="Words that activate this model"
+                            rows={2}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <Label>Short Description</Label>
+                        <Textarea
+                          value={uploadShortDesc}
+                          onChange={(e) => setUploadShortDesc(e.target.value)}
+                          placeholder="Brief description"
+                          rows={2}
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Comment</Label>
+                        <Textarea
+                          value={uploadComment}
+                          onChange={(e) => setUploadComment(e.target.value)}
+                          placeholder="Additional notes"
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="private"
+                          checked={uploadPrivate}
+                          onChange={(e) => setUploadPrivate(e.target.checked)}
+                          className="w-4 h-4"
+                        />
+                        <Label htmlFor="private">Private Model</Label>
+                      </div>
+
+                      <Button
+                        onClick={async () => {
+                          if (!runwareService) {
+                            toast.error('Please set API key first');
+                            return;
+                          }
+
+                          if (!uploadArchitecture || !uploadFormat || !uploadAir || !uploadUniqueId ||
+                            !uploadName || !uploadVersion || !uploadDownloadURL) {
+                            toast.error('Please fill in all required fields');
+                            return;
+                          }
+
+                          setIsGenerating(true);
+                          try {
+                            let params: ModelUploadParams;
+                            const tagsArray = uploadTags.split(',').map(t => t.trim()).filter(Boolean);
+
+                            if (uploadCategory === "checkpoint") {
+                              params = {
+                                category: "checkpoint",
+                                architecture: uploadArchitecture,
+                                format: uploadFormat,
+                                air: uploadAir,
+                                uniqueIdentifier: uploadUniqueId,
+                                name: uploadName,
+                                version: uploadVersion,
+                                downloadURL: uploadDownloadURL,
+                                defaultWeight: uploadDefaultWeight,
+                                private: uploadPrivate,
+                                heroImageURL: uploadHeroImageURL,
+                                tags: tagsArray,
+                                positiveTriggerWords: uploadTriggerWords,
+                                shortDescription: uploadShortDesc,
+                                comment: uploadComment
+                              } as ModelUploadCheckpointParams;
+                            } else if (uploadCategory === "lora") {
+                              params = {
+                                category: "lora",
+                                architecture: uploadArchitecture,
+                                format: uploadFormat,
+                                air: uploadAir,
+                                uniqueIdentifier: uploadUniqueId,
+                                name: uploadName,
+                                version: uploadVersion,
+                                downloadURL: uploadDownloadURL,
+                                defaultWeight: uploadDefaultWeight,
+                                private: uploadPrivate,
+                                heroImageURL: uploadHeroImageURL,
+                                tags: tagsArray,
+                                positiveTriggerWords: uploadTriggerWords,
+                                shortDescription: uploadShortDesc,
+                                comment: uploadComment
+                              } as ModelUploadLoraParams;
+                            } else {
+                              params = {
+                                category: "controlnet",
+                                architecture: uploadArchitecture,
+                                conditioning: uploadConditioning,
+                                format: uploadFormat,
+                                air: uploadAir,
+                                uniqueIdentifier: uploadUniqueId,
+                                name: uploadName,
+                                version: uploadVersion,
+                                downloadUrl: uploadDownloadURL,
+                                private: uploadPrivate,
+                                heroImageUrl: uploadHeroImageURL,
+                                tags: tagsArray,
+                                shortDescription: uploadShortDesc,
+                                comment: uploadComment
+                              } as ModelUploadControlNetParams;
                             }
-                          };
-                          
-                          result = await runwareService.generateTranscription(transcriptionParams);
-                        }
-                        
-                        setCaptionResult(result.text || result.caption || 'No result returned');
-                        toast.success('Caption generated successfully!');
-                      } catch (error) {
-                        console.error('Caption generation failed:', error);
-                        toast.error('Failed to generate caption. Please try again.');
-                      } finally {
-                        setIsGenerating(false);
-                      }
-                    }}
-                    disabled={isGenerating || (captionType === "image" ? !captionImage : !captionVideo)}
-                    className="w-full"
-                  >
-                    {isGenerating ? 'Processing...' : (captionType === "image" ? 'Generate Caption' : 'Generate Transcription')}
-                  </Button>
-                </div>
-              </Card>
 
-              <Card className="p-6 bg-ai-surface border-border shadow-card">
-                <h3 className="text-lg font-semibold mb-4">Result</h3>
-                {captionResult ? (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-ai-surface-elevated rounded-lg border border-border">
-                      <p className="text-sm whitespace-pre-wrap">{captionResult}</p>
+                            const result = await runwareService.uploadModel(params);
+                            toast.success(result.message || 'Model uploaded successfully!');
+
+                            // Reset form
+                            setUploadArchitecture("");
+                            setUploadFormat("");
+                            setUploadAir("");
+                            setUploadUniqueId("");
+                            setUploadName("");
+                            setUploadVersion("");
+                            setUploadDownloadURL("");
+                            setUploadDefaultWeight(1.0);
+                            setUploadPrivate(false);
+                            setUploadHeroImageURL("");
+                            setUploadTags("");
+                            setUploadTriggerWords("");
+                            setUploadShortDesc("");
+                            setUploadComment("");
+                            setUploadConditioning("");
+                          } catch (error) {
+                            console.error('Model upload failed:', error);
+                            toast.error('Failed to upload model. Please try again.');
+                          } finally {
+                            setIsGenerating(false);
+                          }
+                        }}
+                        disabled={isGenerating}
+                        className="w-full"
+                      >
+                        {isGenerating ? 'Uploading...' : 'Upload Model'}
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(captionResult);
-                        toast.success('Copied to clipboard!');
-                      }}
-                      className="w-full"
-                    >
-                      Copy to Clipboard
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Upload {captionType === "image" ? "an image" : "a video"} and click generate to see the result</p>
-                  </div>
-                )}
-                
-                <div className="mt-6 space-y-4 text-sm text-muted-foreground">
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-2">Caption Models:</h4>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li><strong>General:</strong> Basic image description</li>
-                      <li><strong>Age Detection:</strong> Analyze age-related content</li>
-                      <li><strong>Technical Analysis:</strong> Camera settings and composition</li>
-                      <li><strong>Content Identification:</strong> Identify objects and scenes</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-2">Video Transcription:</h4>
-                    <p>Converts speech in videos to text using advanced AI models</p>
-                  </div>
-                  <div>
-                    <a 
-                      href="https://runware.ai/docs/en/tools/caption" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      View Caption API Documentation →
-                    </a>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
+                  </Card>
 
-          {/* Live Edits Tab */}
-          <TabsContent value="liveedits">
-            {runwareService ? (
-              <LiveEdits runwareService={runwareService} />
-            ) : (
-              <Card className="p-6 bg-ai-surface border-border shadow-card text-center">
-                <p className="text-muted-foreground">Please set up your API key first</p>
-              </Card>
-            )}
-          </TabsContent>
+                  <Card className="p-6 bg-ai-surface border-border shadow-card">
+                    <h3 className="text-lg font-semibold mb-4">API Documentation</h3>
+                    <div className="space-y-4 text-sm text-muted-foreground">
+                      <div>
+                        <h4 className="font-semibold text-foreground mb-2">Model Types:</h4>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li><strong>Checkpoint:</strong> Full model weights</li>
+                          <li><strong>LoRA:</strong> Low-Rank Adaptation models</li>
+                          <li><strong>ControlNet:</strong> Conditional control models</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground mb-2">Required Fields:</h4>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li>Architecture (e.g., sd15, sdxl, flux)</li>
+                          <li>Format (e.g., safetensors, ckpt)</li>
+                          <li>AIR Code (unique identifier)</li>
+                          <li>Unique Identifier</li>
+                          <li>Model Name & Version</li>
+                          <li>Download URL</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground mb-2">ControlNet Specific:</h4>
+                        <p>The conditioning field specifies the type of control (e.g., canny, depth, pose)</p>
+                      </div>
+                      <div>
+                        <a
+                          href="https://runware.ai/docs/en/image-inference/model-upload"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline inline-flex items-center gap-1"
+                        >
+                          View Full API Documentation →
+                        </a>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              {/* Caption Tab */}
+              <TabsContent value="caption">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <Card className="p-6 bg-ai-surface border-border shadow-card">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 rounded-lg bg-gradient-primary">
+                        <MessageSquare className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold">Caption & Transcription</h2>
+                        <p className="text-sm text-muted-foreground">Generate captions for images or transcribe videos</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Content Type</Label>
+                        <Select value={captionType} onValueChange={setCaptionType}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="image">Image Caption</SelectItem>
+                            <SelectItem value="video">Video Transcription</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {captionType === "image" ? (
+                        <>
+                          <div>
+                            <Label>Upload Image</Label>
+                            <Button
+                              variant="outline"
+                              className="w-full h-32 border-dashed"
+                              onClick={() => document.getElementById('caption-image-input')?.click()}
+                            >
+                              <Upload className="w-6 h-6 mr-2" />
+                              {captionImage ? captionImage.name : 'Choose Image'}
+                            </Button>
+                            <input
+                              id="caption-image-input"
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => setCaptionImage(e.target.files?.[0] || null)}
+                              className="hidden"
+                            />
+                          </div>
+
+                          {captionImage && (
+                            <div className="border rounded-lg overflow-hidden">
+                              <img
+                                src={URL.createObjectURL(captionImage)}
+                                alt="Input"
+                                className="w-full h-48 object-cover"
+                              />
+                            </div>
+                          )}
+
+                          <div>
+                            <Label>Caption Model</Label>
+                            <Select value={captionModel} onValueChange={setCaptionModel}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="runware:150@2">General</SelectItem>
+                                <SelectItem value="runware:152@50">Age Detection</SelectItem>
+                                <SelectItem value="runware:152@2">Technical Analysis</SelectItem>
+                                <SelectItem value="runware:151@1">Content Identification</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label>Custom Prompt (Optional)</Label>
+                            <Textarea
+                              value={captionPrompt}
+                              onChange={(e) => setCaptionPrompt(e.target.value)}
+                              placeholder="Analyze the lighting, composition, and camera settings..."
+                              rows={3}
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <Label>Upload Video</Label>
+                            <Button
+                              variant="outline"
+                              className="w-full h-32 border-dashed"
+                              onClick={() => document.getElementById('caption-video-input')?.click()}
+                            >
+                              <Upload className="w-6 h-6 mr-2" />
+                              {captionVideo ? captionVideo.name : 'Choose Video'}
+                            </Button>
+                            <input
+                              id="caption-video-input"
+                              type="file"
+                              accept="video/*"
+                              onChange={(e) => setCaptionVideo(e.target.files?.[0] || null)}
+                              className="hidden"
+                            />
+                          </div>
+
+                          {captionVideo && (
+                            <div className="border rounded-lg overflow-hidden">
+                              <video
+                                src={URL.createObjectURL(captionVideo)}
+                                className="w-full h-48 object-cover"
+                                controls
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      <Button
+                        onClick={async () => {
+                          if (!runwareService) {
+                            toast.error('Please set API key first');
+                            return;
+                          }
+
+                          if (captionType === "image" && !captionImage) {
+                            toast.error('Please select an image');
+                            return;
+                          }
+
+                          if (captionType === "video" && !captionVideo) {
+                            toast.error('Please select a video');
+                            return;
+                          }
+
+                          setIsGenerating(true);
+                          setCaptionResult("");
+
+                          try {
+                            let result;
+
+                            if (captionType === "image") {
+                              const uploadedImageId = await runwareService.uploadImage(captionImage!);
+
+                              const captionParams = {
+                                taskType: "caption" as const,
+                                taskUUID: crypto.randomUUID(),
+                                inputImage: uploadedImageId,
+                                model: captionModel,
+                                ...(captionPrompt && { prompt: captionPrompt })
+                              };
+
+                              result = await runwareService.generateCaption(captionParams);
+                            } else {
+                              const uploadedVideoId = await runwareService.uploadImage(captionVideo!);
+
+                              const transcriptionParams = {
+                                taskType: "transcription" as const,
+                                taskUUID: crypto.randomUUID(),
+                                model: "memories:1@1",
+                                inputs: {
+                                  video: uploadedVideoId
+                                }
+                              };
+
+                              result = await runwareService.generateTranscription(transcriptionParams);
+                            }
+
+                            setCaptionResult(result.text || result.caption || 'No result returned');
+                            toast.success('Caption generated successfully!');
+                          } catch (error) {
+                            console.error('Caption generation failed:', error);
+                            toast.error('Failed to generate caption. Please try again.');
+                          } finally {
+                            setIsGenerating(false);
+                          }
+                        }}
+                        disabled={isGenerating || (captionType === "image" ? !captionImage : !captionVideo)}
+                        className="w-full"
+                      >
+                        {isGenerating ? 'Processing...' : (captionType === "image" ? 'Generate Caption' : 'Generate Transcription')}
+                      </Button>
+                    </div>
+                  </Card>
+
+                  <Card className="p-6 bg-ai-surface border-border shadow-card">
+                    <h3 className="text-lg font-semibold mb-4">Result</h3>
+                    {captionResult ? (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-ai-surface-elevated rounded-lg border border-border">
+                          <p className="text-sm whitespace-pre-wrap">{captionResult}</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            navigator.clipboard.writeText(captionResult);
+                            toast.success('Copied to clipboard!');
+                          }}
+                          className="w-full"
+                        >
+                          Copy to Clipboard
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>Upload {captionType === "image" ? "an image" : "a video"} and click generate to see the result</p>
+                      </div>
+                    )}
+
+                    <div className="mt-6 space-y-4 text-sm text-muted-foreground">
+                      <div>
+                        <h4 className="font-semibold text-foreground mb-2">Caption Models:</h4>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li><strong>General:</strong> Basic image description</li>
+                          <li><strong>Age Detection:</strong> Analyze age-related content</li>
+                          <li><strong>Technical Analysis:</strong> Camera settings and composition</li>
+                          <li><strong>Content Identification:</strong> Identify objects and scenes</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground mb-2">Video Transcription:</h4>
+                        <p>Converts speech in videos to text using advanced AI models</p>
+                      </div>
+                      <div>
+                        <a
+                          href="https://runware.ai/docs/en/tools/caption"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline inline-flex items-center gap-1"
+                        >
+                          View Caption API Documentation →
+                        </a>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              {/* Live Edits Tab */}
+              <TabsContent value="liveedits">
+                {runwareService ? (
+                  <LiveEdits runwareService={runwareService} />
+                ) : (
+                  <Card className="p-6 bg-ai-surface border-border shadow-card text-center">
+                    <p className="text-muted-foreground">Please set up your API key first</p>
+                  </Card>
+                )}
+              </TabsContent>
+            </div>
+          </div>
         </Tabs>
       </div>
     </div>

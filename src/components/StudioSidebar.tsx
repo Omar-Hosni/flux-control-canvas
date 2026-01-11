@@ -1,4 +1,4 @@
-import { Zap, ImageIcon, Palette, Wand2, Upload, MessageSquare, Sparkles } from 'lucide-react';
+import { Zap, ImageIcon, Palette, Wand2, Upload, MessageSquare, Sparkles, Film } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +22,7 @@ const navItems = [
     items: [
       { id: "texttoimage", label: "Text-to-Image", icon: Zap },
       { id: "img2img", label: "Image-to-Image", icon: ImageIcon },
+      { id: "videogen", label: "Video Generation", icon: Film },
       { id: "flux", label: "Flux Kontext", icon: Palette },
       { id: "merger", label: "Merger (Re-mix)", icon: Palette },
     ]
@@ -51,7 +52,7 @@ export function StudioSidebar({ activeTab, onTabChange }: StudioSidebarProps) {
             Runware AI Studio
           </h2>
         </div>
-        
+
         {navItems.map((section) => (
           <SidebarGroup key={section.title}>
             <SidebarGroupLabel className="px-6 text-xs uppercase tracking-wider text-muted-foreground">
